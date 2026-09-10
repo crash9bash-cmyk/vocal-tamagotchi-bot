@@ -1,16 +1,27 @@
 """Inline-клавиатуры (по плану: Inline-кнопки для уроков/квизов)."""
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def main_menu() -> InlineKeyboardMarkup:
-    """Кнопки под стартовым сообщением."""
+def main_menu(artist_url: str | None = None) -> InlineKeyboardMarkup:
+    """Кнопки под стартовым сообщением.
+
+    artist_url — HTTPS-ссылка на Mini App «Твой артист».
+    Если не задана — кнопка Mini App не показывается (локальный режим).
+    """
     builder = InlineKeyboardBuilder()
     builder.button(text="🎤 Твой артист", callback_data="open_profile")
     builder.button(text="📚 Уроки", callback_data="open_lessons")
-    builder.adjust(2)
+    if artist_url:
+        builder.button(
+            text="🎨 Артист (Mini App)",
+            web_app=WebAppInfo(url=artist_url),
+        )
+        builder.adjust(2, 1)
+    else:
+        builder.adjust(2)
     return builder.as_markup()
 
 

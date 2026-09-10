@@ -13,6 +13,10 @@ load_dotenv()
 
 BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
 
+# URL Mini App «Твой артист» (нужен публичный HTTPS, чтобы Telegram открыл).
+# Локально можно оставить пустым — кнопка просто не показывается.
+MINI_APP_URL: str = os.getenv("MINI_APP_URL", "")
+
 # XP за прохождение урока (базовое начисление)
 XP_PER_LESSON = 10
 # Сколько уроков нужно пройти для +1 уровень (упрощённо)

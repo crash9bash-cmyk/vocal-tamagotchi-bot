@@ -8,6 +8,7 @@ from aiogram.types import Message, CallbackQuery
 from db.session import SessionLocal
 from db.models import User, UserStats
 from keyboards import main_menu
+from config import MINI_APP_URL
 
 router = Router()
 
@@ -39,7 +40,7 @@ async def cmd_profile(message: Message) -> None:
     if user is None:
         await message.answer("Сначала нажми /start, чтобы создать артиста.")
         return
-    await message.answer(_format(user, stats), reply_markup=main_menu())
+    await message.answer(_format(user, stats), reply_markup=main_menu(MINI_APP_URL))
 
 
 async def render_profile(query: CallbackQuery) -> None:
@@ -48,4 +49,4 @@ async def render_profile(query: CallbackQuery) -> None:
     if user is None:
         await query.message.answer("Сначала нажми /start.")
         return
-    await query.message.edit_text(_format(user, stats), reply_markup=main_menu())
+    await query.message.edit_text(_format(user, stats), reply_markup=main_menu(MINI_APP_URL))

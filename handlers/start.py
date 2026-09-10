@@ -8,6 +8,7 @@ from aiogram.types import Message, CallbackQuery
 from db.session import SessionLocal
 from db.models import User, UserStats
 from keyboards import main_menu
+from config import MINI_APP_URL
 
 router = Router()
 
@@ -37,7 +38,7 @@ async def cmd_start(message: Message) -> None:
         f"Я — твой вокальный тамагочи. Растим артиста вместе.\n"
         f"Уровень: {user.level} · XP: {user.xp} · стрик: {user.current_streak} дн.\n\n"
         f"Что делаем?",
-        reply_markup=main_menu(),
+        reply_markup=main_menu(MINI_APP_URL),
     )
 
 
