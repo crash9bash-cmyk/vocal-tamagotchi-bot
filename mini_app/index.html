@@ -31,6 +31,14 @@
     font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
     margin: 4px 0 10px; color: var(--accent);
   }
+  .name-edit {
+    background: transparent; border: none;
+    border-bottom: 1px dashed var(--line);
+    color: var(--accent); font: inherit; text-transform: uppercase;
+    letter-spacing: 1px; width: 9.5em; text-align: center;
+    padding: 0; outline: none;
+  }
+  .name-edit:focus { border-bottom-color: var(--accent); }
   .screen {
     background: #0a1426;
     border: 4px solid #0c1d38;
@@ -81,7 +89,7 @@
 </head>
 <body>
 <div id="app">
-  <h1>🎤 Твой артист</h1>
+  <h1>🎤 <input id="nameInput" class="name-edit" maxlength="22" spellcheck="false" aria-label="Имя артиста" /></h1>
   <div class="screen">
     <canvas id="stage" width="64" height="64"></canvas>
     <div class="meta">
@@ -383,6 +391,9 @@ function render() {
   let noteTimer = 0;
   function loop(ts) {
     perfNow = ts || 0;
+    const gender = getGender();   // читаем актуальные значения каждый кадр
+    const top = getTop();
+    const bot = getBot();
     ctx.clearRect(0, 0, 64, 64);
     drawStudio();
     const cx = 30;
@@ -414,6 +425,15 @@ try {
     cb.onclick = () => tg.close();
   }
 } catch (e) {}
+
+// редактируемое имя артиста в шапке (хранится в localStorage)
+const nameInput = document.getElementById("nameInput");
+nameInput.value = lsGet("vt_name", "Твой артист");
+nameInput.addEventListener("input", () => {
+  const n = nameInput.value;
+  lsSet("vt_name", n);
+  document.title = n || "Твой артист";
+});
 
 buildSwatches();
 render();
