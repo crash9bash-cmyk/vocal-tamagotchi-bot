@@ -5,18 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>Твой артист</title>
 <style>
-  /* Game Boy DMG-палитра для интерфейса */
+  /* цветовая гамма (как в первой версии визуала) */
   :root {
-    --c0: #0f380f; /* тёмный */
-    --c1: #306230; /* ср-тёмный */
-    --c2: #8bac0f; /* ср-светлый */
-    --c3: #9bbc0f; /* светлый */
+    --bg: #11203a;
+    --panel: #1c2f52;
+    --ink: #fff1e8;
+    --accent: #ffcd75;
+    --good: #38b764;
+    --bad: #b13e53;
+    --line: #2b4a7a;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0; min-height: 100%;
-    background: var(--c0);
-    color: var(--c3);
+    background: var(--bg); color: var(--ink);
     font-family: "Courier New", ui-monospace, monospace;
     -webkit-font-smoothing: none;
   }
@@ -27,48 +29,46 @@
   }
   h1 {
     font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
-    margin: 4px 0 10px; color: var(--c2);
+    margin: 4px 0 10px; color: var(--accent);
   }
-  /* корпус как Game Boy */
   .screen {
-    background: var(--c0);
-    border: 6px solid #1a1a1a;
-    border-radius: 12px 12px 26px 12px;
-    box-shadow: inset 0 0 0 3px var(--c1);
-    padding: 12px;
+    background: #0a1426;
+    border: 4px solid #0c1d38;
+    box-shadow: 0 0 0 2px #2b4a7a inset, 0 6px 0 #0a1830;
+    border-radius: 10px; padding: 10px;
     width: 100%;
     display: flex; flex-direction: column; align-items: center;
   }
   #stage {
     width: 256px; height: 256px;
     image-rendering: pixelated;
-    background: var(--c3);
+    background: radial-gradient(circle at 50% 38%, #1d3a66 0%, #0a1426 70%);
     border: 3px solid #000;
   }
   .meta { display: flex; gap: 6px; margin: 10px 0 4px; flex-wrap: wrap; justify-content: center; }
   .chip {
-    background: var(--c1); color: var(--c3);
-    border: 2px solid #000; padding: 3px 7px; font-size: 11px; border-radius: 4px;
+    background: var(--panel); border: 2px solid var(--line);
+    padding: 3px 7px; font-size: 11px; border-radius: 6px;
   }
-  .chip b { color: var(--c2); }
-  .mood { font-size: 11px; color: var(--c2); margin-bottom: 6px; min-height: 14px; text-align: center; }
+  .chip b { color: var(--accent); }
+  .mood { font-size: 11px; color: var(--good); margin-bottom: 6px; min-height: 14px; text-align: center; }
   .gender { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
   .gender button {
-    background: var(--c1); color: var(--c3); border: 2px solid #000;
-    padding: 5px 10px; font-family: inherit; font-size: 11px; border-radius: 4px; cursor: pointer;
+    background: var(--panel); color: var(--ink); border: 2px solid var(--line);
+    padding: 5px 10px; font-family: inherit; font-size: 11px; border-radius: 6px; cursor: pointer;
   }
-  .gender button.active { background: var(--c2); color: var(--c0); }
-  .gender .lbl { font-size: 10px; color: var(--c2); }
+  .gender button.active { background: var(--accent); color: var(--bg); }
+  .gender .lbl { font-size: 10px; color: var(--good); }
   .stats { width: 100%; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
-  .stat { font-size: 11px; color: var(--c3); }
+  .stat { font-size: 11px; color: var(--ink); }
   .stat .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-  .bar { height: 10px; background: var(--c0); border: 2px solid #000; border-radius: 3px; overflow: hidden; }
-  .bar > i { display: block; height: 100%; background: var(--c2); }
-  .hint { font-size: 9px; opacity: .7; margin-top: 12px; text-align: center; color: var(--c2); }
+  .bar { height: 10px; background: #0a1426; border: 2px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .hint { font-size: 9px; opacity: .6; margin-top: 12px; text-align: center; color: var(--good); }
   button.close {
-    margin-top: 12px; background: var(--c1); color: var(--c3);
-    border: 2px solid #000; padding: 7px 12px; font-family: inherit;
-    font-size: 11px; border-radius: 4px; cursor: pointer;
+    margin-top: 12px; background: var(--panel); color: var(--ink);
+    border: 2px solid var(--line); padding: 7px 12px; font-family: inherit;
+    font-size: 11px; border-radius: 6px; cursor: pointer;
   }
 </style>
 </head>
@@ -90,14 +90,16 @@
     </div>
     <div class="stats" id="stats"></div>
   </div>
-  <div class="hint">Vocal Tamagotchi · Game Boy style</div>
+  <div class="hint">Vocal Tamagotchi</div>
   <button class="close" id="closeBtn" style="display:none">Закрыть</button>
 </div>
 
 <script>
-// ---------- Game Boy DMG-палитра (4 оттенка) ----------
-// хочешь строго серую — замени массив на ["#0f0f0f","#555","#aaa","#eee"]
-const PAL = ["#0f380f", "#306230", "#8bac0f", "#9bbc0f"];
+// ---------- цветная палитра (как в первой версии визуала) ----------
+// 0 контур/глаза | 1 одежда | 2 кожа | 3 трава/листва | 4 волосы
+// 5 микрофон/акцент | 6 рот | 7 щёчки | 8 блик/белок/ноты
+const PAL = ["#1a1c2c", "#ef7d57", "#ffcd75", "#38b764",
+             "#6b4226", "#41a6f6", "#b13e53", "#ff77a8", "#fff1e8"];
 const cv = document.getElementById("stage");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
@@ -111,41 +113,44 @@ function disc(cx, cy, r, c) {
 
 // ---------- сцена: студия ----------
 function drawStudio() {
-  rect(0, 0, 64, 64, 3);              // стена
-  rect(0, 52, 64, 12, 1);             // пол
-  rect(0, 52, 64, 1, 0);              // линия пола
+  // фон — синий radial-gradient (как в первой версии)
+  const g = ctx.createRadialGradient(32, 24, 4, 32, 32, 42);
+  g.addColorStop(0, "#1d3a66"); g.addColorStop(1, "#0a1426");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  rect(0, 52, 64, 12, 0);             // пол (тёмный)
+  rect(0, 52, 64, 1, 2);              // линия пола (светлая)
   // зеркало на стене (слева)
-  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 2);
+  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 5);
   // постер (справа вверху)
   rect(45, 5, 10, 12, 1); rect(46, 6, 8, 10, 2);
-  px(49, 9, 0); px(49, 10, 0); px(50, 11, 0); // нотка на постере
+  px(49, 9, 8); px(49, 10, 8); px(50, 11, 8); // нотка на постере
   // растение в углу
   rect(3, 47, 7, 6, 1);               // горшок
-  disc(6, 44, 3, 2); rect(5, 41, 3, 4, 2);
+  disc(6, 44, 3, 3); rect(5, 41, 3, 4, 3); // листва
   // микрофон на стойке (справа)
-  rect(52, 29, 1, 23, 1);             // стойка
-  rect(50, 51, 5, 2, 1);              // основание
-  disc(52, 28, 3, 0);                 // головка
-  px(51, 27, 2); px(53, 27, 2);       // решётка блик
+  rect(52, 29, 1, 23, 0);             // стойка
+  rect(50, 51, 5, 2, 0);              // основание
+  disc(52, 28, 3, 5);                 // головка (синяя)
+  px(51, 27, 8); px(53, 27, 8);       // решётка блик
 }
 
 // ---------- персонаж (полный рост) ----------
 function drawChar(cx, bob, gender, mood, singing, tears) {
-  const y = bob; // вертикальный сдвиг (прыжок/покачивание)
+  const y = bob;
   // ноги
   rect(cx - 4, 40 + y, 3, 10, 1); rect(cx + 1, 40 + y, 3, 10, 1);
   px(cx - 4, 49 + y, 0); px(cx - 3, 49 + y, 0); px(cx - 2, 49 + y, 0);
   px(cx + 1, 49 + y, 0); px(cx + 2, 49 + y, 0); px(cx + 3, 49 + y, 0);
   // туловище
   if (gender === "girl") {
-    rect(cx - 5, 24 + y, 10, 12, 1);  // кофта
-    rect(cx - 6, 36 + y, 12, 5, 1);   // юбка (шире)
+    rect(cx - 5, 24 + y, 10, 12, 1);
+    rect(cx - 6, 36 + y, 12, 5, 1);
   } else {
-    rect(cx - 5, 24 + y, 10, 16, 1);  // футболка
+    rect(cx - 5, 24 + y, 10, 16, 1);
   }
   // руки
-  rect(cx - 6, 26 + y, 2, 10, 1);     // левая
-  if (singing) {                      // правая тянется к микрофону
+  rect(cx - 6, 26 + y, 2, 10, 1);
+  if (singing) {
     px(cx + 5, 28 + y, 1); px(cx + 6, 29 + y, 1); px(cx + 7, 30 + y, 1);
     px(cx + 8, 30 + y, 1); px(cx + 9, 29 + y, 1);
   } else {
@@ -157,49 +162,50 @@ function drawChar(cx, bob, gender, mood, singing, tears) {
   disc(cx, 16 + y, 6, 2);
   // волосы
   if (gender === "girl") {
-    rect(cx - 6, 10 + y, 12, 3, 0);
-    rect(cx - 6, 13 + y, 2, 9, 0); rect(cx + 4, 13 + y, 2, 9, 0); // длинные пряди
+    rect(cx - 6, 10 + y, 12, 3, 4);
+    rect(cx - 6, 13 + y, 2, 9, 4); rect(cx + 4, 13 + y, 2, 9, 4);
     rect(cx - 1, 8 + y, 3, 2, 1);   // бант
   } else {
-    rect(cx - 6, 10 + y, 12, 3, 0);
-    rect(cx - 6, 10 + y, 2, 5, 0); rect(cx + 4, 10 + y, 2, 5, 0);
+    rect(cx - 6, 10 + y, 12, 3, 4);
+    rect(cx - 6, 10 + y, 2, 5, 4); rect(cx + 4, 10 + y, 2, 5, 4);
   }
   // лицо: глаза
-  const blink = (Math.floor(perfNow / 240) % 17 === 0); // моргание
+  const blink = (Math.floor(perfNow / 240) % 17 === 0);
   if (blink) {
     px(cx - 3, 16 + y, 0); px(cx - 2, 16 + y, 0);
     px(cx + 2, 16 + y, 0); px(cx + 3, 16 + y, 0);
   } else {
     px(cx - 3, 16 + y, 0); px(cx + 3, 16 + y, 0);
   }
+  // щёчки
+  px(cx - 4, 18 + y, 7); px(cx + 4, 18 + y, 7);
   // рот
   if (singing) {
-    disc(cx, 19 + y, 1, 0);            // открыт (поёт)
+    disc(cx, 19 + y, 1, 6);            // открыт (поёт)
   } else if (mood === "sad") {
-    px(cx - 1, 20 + y, 0); px(cx, 19 + y, 0); px(cx + 1, 20 + y, 0);
+    px(cx - 1, 20 + y, 6); px(cx, 19 + y, 6); px(cx + 1, 20 + y, 6);
   } else {
-    px(cx - 1, 19 + y, 0); px(cx, 19 + y, 0); px(cx + 1, 19 + y, 0); // улыбка
+    px(cx - 1, 19 + y, 6); px(cx, 19 + y, 6); px(cx + 1, 19 + y, 6);
   }
   // слёзы
   if (tears) {
-    px(cx - 3, 18 + y, 2); px(cx - 3, 19 + y, 2);
-    px(cx + 3, 18 + y, 2); px(cx + 3, 19 + y, 2);
+    px(cx - 3, 18 + y, 5); px(cx - 3, 19 + y, 5);
+    px(cx + 3, 18 + y, 5); px(cx + 3, 19 + y, 5);
   }
 }
 
 // ---------- интерактив: ноты и звёзды ----------
-let notes = [];   // {x,y,vy}
-let stars = [];   // {x,y,life}
+let notes = [];
+let stars = [];
 function spawnNote() {
   notes.push({ x: 50, y: 26, vy: -0.35, vx: -0.12 });
 }
 function drawNotes() {
   for (const n of notes) {
     n.x += n.vx; n.y += n.vy;
-    // ♪ — две точки + штиль
-    px(Math.round(n.x), Math.round(n.y), 0);
-    px(Math.round(n.x), Math.round(n.y) - 1, 0);
-    px(Math.round(n.x) + 1, Math.round(n.y) - 1, 0);
+    px(Math.round(n.x), Math.round(n.y), 8);
+    px(Math.round(n.x), Math.round(n.y) - 1, 8);
+    px(Math.round(n.x) + 1, Math.round(n.y) - 1, 8);
   }
   notes = notes.filter(n => n.y > 4);
 }
@@ -212,7 +218,7 @@ function spawnStars(cx) {
 function drawStars() {
   for (const s of stars) {
     s.life--;
-    const c = (s.life % 20 < 10) ? 2 : 0; // мерцание
+    const c = (s.life % 20 < 10) ? 8 : 2;
     px(s.x, s.y, c); px(s.x - 1, s.y, c); px(s.x + 1, s.y, c);
     px(s.x, s.y - 1, c); px(s.x, s.y + 1, c);
   }
@@ -272,7 +278,6 @@ function render() {
   const mood = moodFrom(d, forcedSad);
   document.getElementById("mood").textContent = MOOD_TEXT[mood];
 
-  // шкалы статов
   const stats = [["🎶 Техника", d.tech], ["💚 Здоровье", d.health],
                  ["✨ Харизма", d.char], ["👂 Теория", d.theory]];
   const wrap = document.getElementById("stats");
@@ -286,11 +291,9 @@ function render() {
     wrap.appendChild(div);
   }
 
-  // кнопки пола
   document.getElementById("gBoy").onclick = () => setGender("boy");
   document.getElementById("gGirl").onclick = () => setGender("girl");
 
-  // таймеры событий
   let jumpUntil = 0, starUntil = 0;
   if (d.event === "lesson_done") starUntil = perfNow + 150;
   if (d.event === "level_up") { jumpUntil = perfNow + 120; starUntil = perfNow + 150; }
@@ -307,7 +310,6 @@ function render() {
     const singing = (mood !== "sad") || d.event === "lesson_done" || d.event === "level_up";
     drawChar(cx, bob, gender, mood, singing, forcedSad);
 
-    // ноты (артист поёт)
     if (singing) {
       noteTimer++;
       if (noteTimer % 22 === 0) spawnNote();
@@ -321,7 +323,6 @@ function render() {
   requestAnimationFrame(loop);
 }
 
-// Telegram адаптация
 try {
   const tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {
