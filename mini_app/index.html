@@ -52,13 +52,20 @@
   }
   .chip b { color: var(--accent); }
   .mood { font-size: 11px; color: var(--good); margin-bottom: 6px; min-height: 14px; text-align: center; }
-  .gender { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+  .section-lbl { font-size: 10px; color: var(--good); margin: 8px 0 3px; letter-spacing: .5px; }
+  .gender { display: flex; gap: 8px; margin: 2px 0; align-items: center; justify-content: center; }
   .gender button {
     background: var(--panel); color: var(--ink); border: 2px solid var(--line);
     padding: 5px 10px; font-family: inherit; font-size: 11px; border-radius: 6px; cursor: pointer;
   }
   .gender button.active { background: var(--accent); color: var(--bg); }
-  .gender .lbl { font-size: 10px; color: var(--good); }
+  .swatch-row { display: flex; gap: 5px; align-items: center; margin: 3px 0; flex-wrap: wrap; justify-content: center; }
+  .swatch-row .lbl { font-size: 10px; color: var(--good); width: 26px; text-align: left; }
+  .swatch {
+    width: 18px; height: 18px; border: 2px solid var(--line);
+    border-radius: 4px; cursor: pointer; padding: 0;
+  }
+  .swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .stats { width: 100%; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
   .stat { font-size: 11px; color: var(--ink); }
   .stat .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
@@ -83,11 +90,17 @@
       <span class="chip">🔥 <b id="streak">0</b></span>
     </div>
     <div class="mood" id="mood">…</div>
+
+    <div class="section-lbl">Пол</div>
     <div class="gender">
-      <span class="lbl">Пол:</span>
       <button id="gBoy">♂ Мальчик</button>
       <button id="gGirl">♀ Девочка</button>
     </div>
+
+    <div class="section-lbl">Цвет одежды</div>
+    <div class="swatch-row"><span class="lbl">Верх</span><span id="topSwatches"></span></div>
+    <div class="swatch-row"><span class="lbl">Низ</span><span id="botSwatches"></span></div>
+
     <div class="stats" id="stats"></div>
   </div>
   <div class="hint">Vocal Tamagotchi</div>
@@ -95,17 +108,26 @@
 </div>
 
 <script>
-// ---------- цветная палитра (как в первой версии визуала) ----------
-// 0 контур/глаза | 1 одежда | 2 кожа | 3 трава/листва | 4 волосы
-// 5 микрофон/акцент | 6 рот | 7 щёчки | 8 блик/белок/ноты
+// ---------- базовая палитра ----------
+// 0 контур/глаза | 1 одежда(резерв) | 2 кожа | 3 трава/листва
+// 4 волосы | 5 микрофон/акцент | 6 рот | 7 щёчки | 8 блик/ноты/белок
 const PAL = ["#1a1c2c", "#ef7d57", "#ffcd75", "#38b764",
              "#6b4226", "#41a6f6", "#b13e53", "#ff77a8", "#fff1e8"];
+
+// палитра свотчей для кастомизации верха/низа
+const SWATCHES = ["#ef7d57", "#41a6f6", "#38b764", "#b13e53",
+                  "#ffcd75", "#ff77a8", "#6b4226", "#fff1e8"];
+const DEF_TOP = "#ef7d57";   // оранжевый верх по умолчанию
+const DEF_BOT = "#41a6f6";   // синий низ по умолчанию
+
 const cv = document.getElementById("stage");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-function px(x, y, c) { if (c == null) return; ctx.fillStyle = PAL[c]; ctx.fillRect(x, y, 1, 1); }
-function rect(x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, c); }
+// px/rect/disc принимают либо индекс PAL (число), либо hex-строку
+function col(c) { return (typeof c === "number") ? PAL[c] : c; }
+function px(x, y, c) { if (c == null) return; ctx.fillStyle = col(c); ctx.fillRect(x, y, 1, 1); }
+function rect(x, y, w, h, c) { const cc = col(c); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, cc); }
 function disc(cx, cy, r, c) {
   for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++)
     if (x*x + y*y <= r*r) px(cx + x, cy + y, c);
@@ -113,99 +135,117 @@ function disc(cx, cy, r, c) {
 
 // ---------- сцена: студия ----------
 function drawStudio() {
-  // фон — синий radial-gradient (как в первой версии)
   const g = ctx.createRadialGradient(32, 24, 4, 32, 32, 42);
   g.addColorStop(0, "#1d3a66"); g.addColorStop(1, "#0a1426");
   ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
   rect(0, 52, 64, 12, 0);             // пол (тёмный)
   rect(0, 52, 64, 1, 2);              // линия пола (светлая)
-  // зеркало на стене (слева)
-  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 5);
-  // постер (справа вверху)
-  rect(45, 5, 10, 12, 1); rect(46, 6, 8, 10, 2);
-  px(49, 9, 8); px(49, 10, 8); px(50, 11, 8); // нотка на постере
-  // растение в углу
-  rect(3, 47, 7, 6, 1);               // горшок
-  disc(6, 44, 3, 3); rect(5, 41, 3, 4, 3); // листва
-  // микрофон на стойке (справа)
-  rect(52, 29, 1, 23, 0);             // стойка
-  rect(50, 51, 5, 2, 0);              // основание
-  disc(52, 28, 3, 5);                 // головка (синяя)
-  px(51, 27, 8); px(53, 27, 8);       // решётка блик
+  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 5);   // зеркало (слева)
+  rect(45, 5, 10, 12, 1); rect(46, 6, 8, 10, 2);   // постер (справа)
+  px(49, 9, 8); px(49, 10, 8); px(50, 11, 8);      // нотка на постере
+  rect(3, 47, 7, 6, 1); disc(6, 44, 3, 3); rect(5, 41, 3, 4, 3); // растение
+  rect(52, 29, 1, 23, 0); rect(50, 51, 5, 2, 0);   // микрофон: стойка + основание
+  disc(52, 28, 3, 5); px(51, 27, 8); px(53, 27, 8); // головка + блик
+}
+
+// ---------- аксессуары (задел под награды за уровни) ----------
+// управляются списком `acc` из данных (parseData), напр. ?acc=cap,star
+function drawAcc(a, cx, y, gender) {
+  const hy = (gender === "girl") ? 16 + y : 8 + y; // макушка
+  if (a === "cap") {
+    rect(cx - 6, hy - 1, 13, 3, 6);   // козырёк
+    rect(cx - 5, hy - 3, 11, 2, 6);   // донышко
+    px(cx + 7, hy, 6);                // козырёк вправо
+  } else if (a === "glasses") {
+    const ey = (gender === "girl") ? 22 + y : 14 + y;
+    rect(cx - 5, ey, 4, 2, 0); rect(cx + 1, ey, 4, 2, 0);
+    px(cx - 1, ey, 0);
+  } else if (a === "star") {
+    const ty = (gender === "girl") ? 33 + y : 27 + y;
+    px(cx + 4, ty, 8); px(cx + 3, ty + 1, 8); px(cx + 5, ty + 1, 8);
+    px(cx + 4, ty + 2, 8);            // значок-звезда на груди
+  }
 }
 
 // ---------- персонаж (полный рост) ----------
-function drawChar(cx, bob, gender, mood, singing, tears) {
+// у мальчика и девочки РАЗНЫЕ пропорции и силуэт
+function drawChar(cx, bob, gender, top, bot, mood, singing, tears, acc) {
   const y = bob;
-  // ноги
-  rect(cx - 4, 40 + y, 3, 10, 1); rect(cx + 1, 40 + y, 3, 10, 1);
-  px(cx - 4, 49 + y, 0); px(cx - 3, 49 + y, 0); px(cx - 2, 49 + y, 0);
-  px(cx + 1, 49 + y, 0); px(cx + 2, 49 + y, 0); px(cx + 3, 49 + y, 0);
-  // туловище
+
   if (gender === "girl") {
-    rect(cx - 5, 24 + y, 10, 12, 1);
-    rect(cx - 6, 36 + y, 12, 5, 1);
+    // ДЕВОЧКА: ниже, стройнее, платье, длинные волосы
+    rect(cx - 3, 44 + y, 2, 4, 0); rect(cx + 1, 44 + y, 2, 4, 0);   // ноги
+    px(cx - 3, 48 + y, 0); px(cx - 2, 48 + y, 0);                    // туфли
+    px(cx + 1, 48 + y, 0); px(cx + 2, 48 + y, 0);
+    rect(cx - 5, 38 + y, 10, 2, bot);                                // юбка (низ)
+    rect(cx - 6, 40 + y, 12, 3, bot);
+    rect(cx - 7, 43 + y, 14, 2, bot);
+    rect(cx - 4, 30 + y, 8, 8, top);                                 // лиф (верх)
+    rect(cx - 6, 31 + y, 2, 8, top);                                // левая рука
+    if (singing) {                                                   // правая рука вверх
+      px(cx + 5, 33 + y, top); px(cx + 6, 32 + y, top);
+      px(cx + 7, 31 + y, top); px(cx + 8, 31 + y, top); px(cx + 9, 32 + y, top);
+    } else rect(cx + 5, 31 + y, 2, 8, top);
+    rect(cx - 1, 28 + y, 2, 2, 2);                                   // шея
+    disc(cx, 22 + y, 6, 2);                                          // голова
+    rect(cx - 6, 16 + y, 12, 3, 4);                                  // волосы (длинные)
+    rect(cx - 6, 19 + y, 2, 10, 4); rect(cx + 4, 19 + y, 2, 10, 4);
+    rect(cx - 1, 14 + y, 3, 2, 1);                                   // бант
+    drawFaceGirl(cx, y, mood, tears);
   } else {
-    rect(cx - 5, 24 + y, 10, 16, 1);
+    // МАЛЬЧИК: выше, блочнее, футболка + штаны
+    rect(cx - 5, 36 + y, 4, 12, bot); rect(cx + 1, 36 + y, 4, 12, bot); // штанины (низ)
+    rect(cx - 5, 47 + y, 4, 2, 0); rect(cx + 1, 47 + y, 4, 2, 0);       // ботинки
+    rect(cx - 6, 22 + y, 12, 3, top);                                 // плечи (верх)
+    rect(cx - 5, 25 + y, 10, 11, top);                                // торс
+    rect(cx - 7, 24 + y, 2, 11, top);                                // левая рука
+    if (singing) {
+      px(cx + 5, 26 + y, top); px(cx + 6, 25 + y, top);
+      px(cx + 7, 24 + y, top); px(cx + 8, 24 + y, top); px(cx + 9, 25 + y, top);
+    } else rect(cx + 5, 24 + y, 2, 11, top);
+    rect(cx - 1, 20 + y, 2, 2, 2);                                   // шея
+    disc(cx, 14 + y, 6, 2);                                          // голова
+    rect(cx - 6, 8 + y, 12, 3, 4);                                   // волосы (короткие)
+    rect(cx - 6, 11 + y, 2, 4, 4); rect(cx + 4, 11 + y, 2, 4, 4);
+    drawFaceBoy(cx, y, mood, tears);
   }
-  // руки
-  rect(cx - 6, 26 + y, 2, 10, 1);
-  if (singing) {
-    px(cx + 5, 28 + y, 1); px(cx + 6, 29 + y, 1); px(cx + 7, 30 + y, 1);
-    px(cx + 8, 30 + y, 1); px(cx + 9, 29 + y, 1);
-  } else {
-    rect(cx + 5, 26 + y, 2, 10, 1);
-  }
-  // шея
-  rect(cx - 1, 22 + y, 2, 2, 2);
-  // голова
-  disc(cx, 16 + y, 6, 2);
-  // волосы
-  if (gender === "girl") {
-    rect(cx - 6, 10 + y, 12, 3, 4);
-    rect(cx - 6, 13 + y, 2, 9, 4); rect(cx + 4, 13 + y, 2, 9, 4);
-    rect(cx - 1, 8 + y, 3, 2, 1);   // бант
-  } else {
-    rect(cx - 6, 10 + y, 12, 3, 4);
-    rect(cx - 6, 10 + y, 2, 5, 4); rect(cx + 4, 10 + y, 2, 5, 4);
-  }
-  // лицо: глаза
+
+  if (acc && acc.length) for (const a of acc) drawAcc(a, cx, y, gender);
+}
+
+function drawFaceBoy(cx, y, mood, tears) {
+  const ey = 14 + y;
   const blink = (Math.floor(perfNow / 240) % 17 === 0);
-  if (blink) {
-    px(cx - 3, 16 + y, 0); px(cx - 2, 16 + y, 0);
-    px(cx + 2, 16 + y, 0); px(cx + 3, 16 + y, 0);
-  } else {
-    px(cx - 3, 16 + y, 0); px(cx + 3, 16 + y, 0);
-  }
-  // щёчки
-  px(cx - 4, 18 + y, 7); px(cx + 4, 18 + y, 7);
-  // рот
-  if (singing) {
-    disc(cx, 19 + y, 1, 6);            // открыт (поёт)
-  } else if (mood === "sad") {
-    px(cx - 1, 20 + y, 6); px(cx, 19 + y, 6); px(cx + 1, 20 + y, 6);
-  } else {
-    px(cx - 1, 19 + y, 6); px(cx, 19 + y, 6); px(cx + 1, 19 + y, 6);
-  }
-  // слёзы
-  if (tears) {
-    px(cx - 3, 18 + y, 5); px(cx - 3, 19 + y, 5);
-    px(cx + 3, 18 + y, 5); px(cx + 3, 19 + y, 5);
-  }
+  if (blink) { px(cx - 3, ey, 0); px(cx - 2, ey, 0); px(cx + 2, ey, 0); px(cx + 3, ey, 0); }
+  else { px(cx - 3, ey, 0); px(cx + 3, ey, 0); }
+  px(cx - 4, ey + 2, 7); px(cx + 4, ey + 2, 7);   // щёчки
+  drawMouth(cx, ey + 5, mood, tears);
+  if (tears) { px(cx - 3, ey + 1, 5); px(cx - 3, ey + 2, 5); px(cx + 3, ey + 1, 5); px(cx + 3, ey + 2, 5); }
+}
+function drawFaceGirl(cx, y, mood, tears) {
+  const ey = 22 + y;
+  const blink = (Math.floor(perfNow / 240) % 17 === 0);
+  if (blink) { px(cx - 3, ey, 0); px(cx - 2, ey, 0); px(cx + 2, ey, 0); px(cx + 3, ey, 0); }
+  else { px(cx - 3, ey, 0); px(cx + 3, ey, 0); }
+  px(cx - 4, ey + 2, 7); px(cx + 4, ey + 2, 7);
+  drawMouth(cx, ey + 5, mood, tears);
+  if (tears) { px(cx - 3, ey + 1, 5); px(cx - 3, ey + 2, 5); px(cx + 3, ey + 1, 5); px(cx + 3, ey + 2, 5); }
+}
+function drawMouth(cx, my, mood, tears) {
+  if (tears) { px(cx - 1, my, 6); px(cx, my - 1, 6); px(cx + 1, my, 6); }
+  else if (mood === "sad") { px(cx - 1, my + 1, 6); px(cx, my, 6); px(cx + 1, my + 1, 6); }
+  else { disc(cx, my, 1, 6); }   // открытый рот — поёт/радуется
 }
 
 // ---------- интерактив: ноты и звёзды ----------
 let notes = [];
 let stars = [];
-function spawnNote() {
-  notes.push({ x: 50, y: 26, vy: -0.35, vx: -0.12 });
-}
+function spawnNote() { notes.push({ x: 50, y: 26, vy: -0.35, vx: -0.12 }); }
 function drawNotes() {
   for (const n of notes) {
     n.x += n.vx; n.y += n.vy;
-    px(Math.round(n.x), Math.round(n.y), 8);
-    px(Math.round(n.x), Math.round(n.y) - 1, 8);
-    px(Math.round(n.x) + 1, Math.round(n.y) - 1, 8);
+    const X = Math.round(n.x), Y = Math.round(n.y);
+    px(X, Y, 8); px(X, Y - 1, 8); px(X + 1, Y - 1, 8);
   }
   notes = notes.filter(n => n.y > 4);
 }
@@ -225,36 +265,72 @@ function drawStars() {
   stars = stars.filter(s => s.life > 0);
 }
 
-// ---------- данные ----------
+// ---------- данные и состояние кастомизации ----------
 let perfNow = 0;
 function parseData() {
-  const def = { level: 1, xp: 0, streak: 0, tech: 20, health: 20, char: 20, theory: 20, event: "" };
+  const def = { level: 1, xp: 0, streak: 0, tech: 20, health: 20, char: 20, theory: 20, event: "", acc: [] };
   try {
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-      Object.assign(def, JSON.parse(tg.initDataUnsafe.start_param));
+      const o = JSON.parse(tg.initDataUnsafe.start_param);
+      Object.assign(def, o);
+      if (typeof o.acc === "string") def.acc = o.acc.split(",").filter(Boolean);
     }
   } catch (e) {}
   const q = new URLSearchParams(location.search);
   if ([...q.keys()].length) {
-    for (const k of ["level","xp","streak","tech","health","char","theory"])
+    for (const k of ["level", "xp", "streak", "tech", "health", "char", "theory"])
       if (q.has(k)) def[k] = Number(q.get(k));
     if (q.has("event")) def.event = q.get("event");
+    if (q.has("acc")) def.acc = q.get("acc").split(",").filter(Boolean);
   }
+  if (typeof def.acc === "string") def.acc = def.acc.split(",").filter(Boolean);
   return def;
 }
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
 function getGender() {
   const q = new URLSearchParams(location.search);
   if (q.has("gender")) return q.get("gender") === "girl" ? "girl" : "boy";
-  let g = null;
-  try { g = localStorage.getItem("vt_gender"); } catch (e) {}
-  return g === "girl" ? "girl" : "boy";
+  return lsGet("vt_gender", "boy") === "girl" ? "girl" : "boy";
 }
 function setGender(g) {
-  try { localStorage.setItem("vt_gender", g); } catch (e) {}
+  lsSet("vt_gender", g);
   document.getElementById("gBoy").classList.toggle("active", g === "boy");
   document.getElementById("gGirl").classList.toggle("active", g === "girl");
 }
+function getTop() { return lsGet("vt_top", DEF_TOP); }
+function setTop(c) {
+  lsSet("vt_top", c);
+  markSwatch("topSwatches", c);
+}
+function getBot() { return lsGet("vt_bot", DEF_BOT); }
+function setBot(c) {
+  lsSet("vt_bot", c);
+  markSwatch("botSwatches", c);
+}
+
+// построим свотчи из SWATCHES
+function buildSwatches() {
+  for (const id of ["topSwatches", "botSwatches"]) {
+    const wrap = document.getElementById(id);
+    wrap.innerHTML = "";
+    for (const c of SWATCHES) {
+      const b = document.createElement("button");
+      b.className = "swatch";
+      b.style.background = c;
+      b.dataset.color = c;
+      b.onclick = () => { (id === "topSwatches" ? setTop : setBot)(c); };
+      wrap.appendChild(b);
+    }
+  }
+}
+function markSwatch(id, c) {
+  const wrap = document.getElementById(id);
+  for (const b of wrap.children) b.classList.toggle("active", b.dataset.color === c);
+}
+
 function moodFrom(d, forcedSad) {
   if (forcedSad || d.streak === 0) return "sad";
   if (d.streak >= 3 && d.level >= 3) return "proud";
@@ -269,7 +345,12 @@ const MOOD_TEXT = {
 function render() {
   const d = parseData();
   const gender = getGender();
+  const top = getTop();
+  const bot = getBot();
   setGender(gender);
+  markSwatch("topSwatches", top);
+  markSwatch("botSwatches", bot);
+
   document.getElementById("lvl").textContent = d.level;
   document.getElementById("xp").textContent = d.xp;
   document.getElementById("streak").textContent = d.streak;
@@ -294,6 +375,7 @@ function render() {
   document.getElementById("gBoy").onclick = () => setGender("boy");
   document.getElementById("gGirl").onclick = () => setGender("girl");
 
+  const acc = Array.isArray(d.acc) ? d.acc : [];
   let jumpUntil = 0, starUntil = 0;
   if (d.event === "lesson_done") starUntil = perfNow + 150;
   if (d.event === "level_up") { jumpUntil = perfNow + 120; starUntil = perfNow + 150; }
@@ -308,7 +390,7 @@ function render() {
     const jumping = perfNow < jumpUntil;
     if (jumping) bob -= Math.round(Math.abs(Math.sin(perfNow / 90)) * 5);
     const singing = (mood !== "sad") || d.event === "lesson_done" || d.event === "level_up";
-    drawChar(cx, bob, gender, mood, singing, forcedSad);
+    drawChar(cx, bob, gender, top, bot, mood, singing, forcedSad, acc);
 
     if (singing) {
       noteTimer++;
@@ -333,6 +415,7 @@ try {
   }
 } catch (e) {}
 
+buildSwatches();
 render();
 </script>
 </body>
