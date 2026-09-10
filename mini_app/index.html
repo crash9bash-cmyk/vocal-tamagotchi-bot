@@ -5,75 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>Твой артист</title>
 <style>
+  /* Game Boy DMG-палитра для интерфейса */
   :root {
-    --bg: #11203a;
-    --panel: #1c2f52;
-    --ink: #fff1e8;
-    --accent: #ffcd75;
-    --good: #38b764;
-    --bad: #b13e53;
-    --line: #2b4a7a;
+    --c0: #0f380f; /* тёмный */
+    --c1: #306230; /* ср-тёмный */
+    --c2: #8bac0f; /* ср-светлый */
+    --c3: #9bbc0f; /* светлый */
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; padding: 0; height: 100%;
-    background: var(--bg);
-    color: var(--ink);
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--c0);
+    color: var(--c3);
     font-family: "Courier New", ui-monospace, monospace;
     -webkit-font-smoothing: none;
-    image-rendering: pixelated;
   }
   #app {
-    max-width: 380px; margin: 0 auto; min-height: 100%;
+    max-width: 340px; margin: 0 auto; min-height: 100%;
     display: flex; flex-direction: column; align-items: center;
     padding: 14px 12px 20px;
   }
   h1 {
-    font-size: 15px; letter-spacing: 1px; text-transform: uppercase;
-    margin: 6px 0 10px; color: var(--accent);
+    font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
+    margin: 4px 0 10px; color: var(--c2);
   }
-  /* рамка как Game Boy */
+  /* корпус как Game Boy */
   .screen {
-    background: #0a1426;
-    border: 4px solid #0c1d38;
-    box-shadow: 0 0 0 2px #2b4a7a inset, 0 6px 0 #0a1830;
-    border-radius: 10px;
-    padding: 10px;
+    background: var(--c0);
+    border: 6px solid #1a1a1a;
+    border-radius: 12px 12px 26px 12px;
+    box-shadow: inset 0 0 0 3px var(--c1);
+    padding: 12px;
     width: 100%;
     display: flex; flex-direction: column; align-items: center;
   }
   #stage {
-    width: 200px; height: 200px;
+    width: 256px; height: 256px;
     image-rendering: pixelated;
-    background:
-      radial-gradient(circle at 50% 38%, #1d3a66 0%, #0a1426 70%);
+    background: var(--c3);
+    border: 3px solid #000;
   }
-  .meta {
-    display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; justify-content: center;
-  }
+  .meta { display: flex; gap: 6px; margin: 10px 0 4px; flex-wrap: wrap; justify-content: center; }
   .chip {
-    background: var(--panel); border: 2px solid #2b4a7a;
-    padding: 3px 8px; font-size: 12px; border-radius: 6px;
+    background: var(--c1); color: var(--c3);
+    border: 2px solid #000; padding: 3px 7px; font-size: 11px; border-radius: 4px;
   }
-  .chip b { color: var(--accent); }
-  .mood { font-size: 12px; color: var(--good); margin-bottom: 6px; min-height: 16px; }
-  .stats { width: 100%; margin-top: 12px; display: flex; flex-direction: column; gap: 9px; }
-  .stat { font-size: 12px; }
-  .stat .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-  .bar {
-    height: 12px; background: #0a1426; border: 2px solid #2b4a7a; border-radius: 4px;
-    overflow: hidden;
+  .chip b { color: var(--c2); }
+  .mood { font-size: 11px; color: var(--c2); margin-bottom: 6px; min-height: 14px; text-align: center; }
+  .gender { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+  .gender button {
+    background: var(--c1); color: var(--c3); border: 2px solid #000;
+    padding: 5px 10px; font-family: inherit; font-size: 11px; border-radius: 4px; cursor: pointer;
   }
-  .bar > i {
-    display: block; height: 100%;
-    background: var(--accent);
-    image-rendering: pixelated;
-  }
-  .hint { font-size: 10px; opacity: .6; margin-top: 14px; text-align: center; }
+  .gender button.active { background: var(--c2); color: var(--c0); }
+  .gender .lbl { font-size: 10px; color: var(--c2); }
+  .stats { width: 100%; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+  .stat { font-size: 11px; color: var(--c3); }
+  .stat .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .bar { height: 10px; background: var(--c0); border: 2px solid #000; border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--c2); }
+  .hint { font-size: 9px; opacity: .7; margin-top: 12px; text-align: center; color: var(--c2); }
   button.close {
-    margin-top: 14px; background: var(--panel); color: var(--ink);
-    border: 2px solid #2b4a7a; padding: 8px 14px; font-family: inherit;
-    font-size: 12px; border-radius: 6px; cursor: pointer;
+    margin-top: 12px; background: var(--c1); color: var(--c3);
+    border: 2px solid #000; padding: 7px 12px; font-family: inherit;
+    font-size: 11px; border-radius: 4px; cursor: pointer;
   }
 </style>
 </head>
@@ -83,215 +78,257 @@
   <div class="screen">
     <canvas id="stage" width="64" height="64"></canvas>
     <div class="meta">
-      <span class="chip">Ур <b id="lvl">1</b></span>
+      <span class="chip">УР <b id="lvl">1</b></span>
       <span class="chip">XP <b id="xp">0</b></span>
       <span class="chip">🔥 <b id="streak">0</b></span>
     </div>
     <div class="mood" id="mood">…</div>
+    <div class="gender">
+      <span class="lbl">Пол:</span>
+      <button id="gBoy">♂ Мальчик</button>
+      <button id="gGirl">♀ Девочка</button>
+    </div>
     <div class="stats" id="stats"></div>
   </div>
-  <div class="hint">Визуал артиста · Vocal Tamagotchi</div>
+  <div class="hint">Vocal Tamagotchi · Game Boy style</div>
   <button class="close" id="closeBtn" style="display:none">Закрыть</button>
 </div>
 
 <script>
-// ---------- палитра (ретро) ----------
-const PAL = {
-  o: "#0a1426", // outline / тень
-  k: "#ffcd75", // кожа
-  d: "#e0a85a", // кожа-тень
-  h: "#6b4226", // волосы
-  e: "#1a1c2c", // глаза
-  w: "#fff1e8", // белок/блик
-  m: "#b13e53", // рот
-  c: "#ef7d57", // одежда
-  s: "#41a6f6", // акцент (микрофон/звезда)
-  p: "#ff77a8", // щёчки
-};
-
-// рисуем «пиксель» 1x1 в логическом разрешении 64x64
+// ---------- Game Boy DMG-палитра (4 оттенка) ----------
+// хочешь строго серую — замени массив на ["#0f0f0f","#555","#aaa","#eee"]
+const PAL = ["#0f380f", "#306230", "#8bac0f", "#9bbc0f"];
 const cv = document.getElementById("stage");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
-function px(x, y, c) {
-  if (!c) return;
-  ctx.fillStyle = c;
-  ctx.fillRect(x, y, 1, 1);
-}
-// залить круг радиусом r центром (cx,cy)
+
+function px(x, y, c) { if (c == null) return; ctx.fillStyle = PAL[c]; ctx.fillRect(x, y, 1, 1); }
+function rect(x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, c); }
 function disc(cx, cy, r, c) {
-  for (let y = -r; y <= r; y++)
-    for (let x = -r; x <= r; x++)
-      if (x*x + y*y <= r*r) px(cx + x, cy + y, c);
-}
-function ring(cx, cy, r, c) {
-  for (let y = -r; y <= r; y++)
-    for (let x = -r; x <= r; x++) {
-      const d = x*x + y*y;
-      if (d <= r*r && d >= (r-1)*(r-1)) px(cx + x, cy + y, c);
-    }
+  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++)
+    if (x*x + y*y <= r*r) px(cx + x, cy + y, c);
 }
 
-// ---------- персонаж ----------
-function drawCharacter(mood, bob) {
-  ctx.clearRect(0, 0, 64, 64);
-  const cx = 32, cy = 26 + bob;
-
-  // тело (футболка)
-  disc(cx, cy + 20, 12, PAL.c);
-  disc(cx, cy + 20, 12, PAL.o);
-  for (let y = cy + 12; y <= cy + 33; y++)
-    for (let x = cx - 12; x <= cx + 12; x++)
-      if ((x-cx)*(x-cx) + (y-cy-20)*(y-cy-20) <= 12*12) px(x, y, PAL.c);
-
-  // голова
-  disc(cx, cy, 13, PAL.k);
-  // тень снизу головы
-  for (let y = cy + 6; y <= cy + 12; y++)
-    for (let x = cx - 12; x <= cx + 12; x++)
-      if ((x-cx)*(x-cx) + (y-cy)*(y-cy) <= 13*13 && (x-cx)*(x-cx)+(y-cy-2)*(y-cy-2) > 12*12)
-        px(x, y, PAL.d);
-  // обводка головы
-  ring(cx, cy, 13, PAL.o);
-
-  // волосы (верх головы)
-  for (let y = cy - 16; y <= cy - 6; y++)
-    for (let x = cx - 13; x <= cx + 13; x++)
-      if ((x-cx)*(x-cx) + (y-cy)*(y-cy) <= 13*13 && y < cy - 5) px(x, y, PAL.h);
-
-  // уши
-  px(cx - 13, cy, PAL.k); px(cx + 13, cy, PAL.k);
-
-  // глаза / рот по настроению
-  drawFace(cx, cy, mood);
-
-  // микрофон у рта (справа)
-  drawMic(cx + 11, cy + 4);
-
-  // гордость — звёздочки
-  if (mood === "proud") {
-    star(cx - 18, cy - 16); star(cx + 16, cy - 14);
-  }
+// ---------- сцена: студия ----------
+function drawStudio() {
+  rect(0, 0, 64, 64, 3);              // стена
+  rect(0, 52, 64, 12, 1);             // пол
+  rect(0, 52, 64, 1, 0);              // линия пола
+  // зеркало на стене (слева)
+  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 2);
+  // постер (справа вверху)
+  rect(45, 5, 10, 12, 1); rect(46, 6, 8, 10, 2);
+  px(49, 9, 0); px(49, 10, 0); px(50, 11, 0); // нотка на постере
+  // растение в углу
+  rect(3, 47, 7, 6, 1);               // горшок
+  disc(6, 44, 3, 2); rect(5, 41, 3, 4, 2);
+  // микрофон на стойке (справа)
+  rect(52, 29, 1, 23, 1);             // стойка
+  rect(50, 51, 5, 2, 1);              // основание
+  disc(52, 28, 3, 0);                 // головка
+  px(51, 27, 2); px(53, 27, 2);       // решётка блик
 }
 
-function drawFace(cx, cy, mood) {
-  const eo = 5;           // смещение глаз от центра
-  const ey = cy - 1;
-  if (mood === "sad") {
-    // брови вниз + грустные глаза
-    px(cx - eo - 1, ey - 3, PAL.e); px(cx - eo, ey - 2, PAL.e);
-    px(cx + eo + 1, ey - 3, PAL.e); px(cx + eo, ey - 2, PAL.e);
-    px(cx - eo, ey, PAL.e); px(cx + eo, ey, PAL.e);
-    // рот вниз
-    for (let x = -3; x <= 3; x++) px(cx + x, cy + 6 - Math.abs(x), PAL.m);
-  } else if (mood === "proud") {
-    // широко открытые глаза
-    px(cx - eo, ey, PAL.e); px(cx - eo, ey - 1, PAL.e);
-    px(cx + eo, ey, PAL.e); px(cx + eo, ey - 1, PAL.e);
-    // широкая улыбка
-    for (let x = -4; x <= 4; x++) px(cx + x, cy + 5 + (Math.abs(x) === 4 ? 0 : 1), PAL.m);
-    px(cx - 4, cy + 5, PAL.m); px(cx + 4, cy + 5, PAL.m);
+// ---------- персонаж (полный рост) ----------
+function drawChar(cx, bob, gender, mood, singing, tears) {
+  const y = bob; // вертикальный сдвиг (прыжок/покачивание)
+  // ноги
+  rect(cx - 4, 40 + y, 3, 10, 1); rect(cx + 1, 40 + y, 3, 10, 1);
+  px(cx - 4, 49 + y, 0); px(cx - 3, 49 + y, 0); px(cx - 2, 49 + y, 0);
+  px(cx + 1, 49 + y, 0); px(cx + 2, 49 + y, 0); px(cx + 3, 49 + y, 0);
+  // туловище
+  if (gender === "girl") {
+    rect(cx - 5, 24 + y, 10, 12, 1);  // кофта
+    rect(cx - 6, 36 + y, 12, 5, 1);   // юбка (шире)
   } else {
-    // happy / neutral: точки-глаза
-    px(cx - eo, ey, PAL.e); px(cx + eo, ey, PAL.e);
-    // блик
-    px(cx - eo + 1, ey - 1, PAL.w); px(cx + eo + 1, ey - 1, PAL.w);
-    // щёчки
-    px(cx - eo - 2, cy + 2, PAL.p); px(cx + eo + 2, cy + 2, PAL.p);
-    // рот — улыбка
-    for (let x = -2; x <= 2; x++) px(cx + x, cy + 6 - Math.abs(x), PAL.m);
+    rect(cx - 5, 24 + y, 10, 16, 1);  // футболка
+  }
+  // руки
+  rect(cx - 6, 26 + y, 2, 10, 1);     // левая
+  if (singing) {                      // правая тянется к микрофону
+    px(cx + 5, 28 + y, 1); px(cx + 6, 29 + y, 1); px(cx + 7, 30 + y, 1);
+    px(cx + 8, 30 + y, 1); px(cx + 9, 29 + y, 1);
+  } else {
+    rect(cx + 5, 26 + y, 2, 10, 1);
+  }
+  // шея
+  rect(cx - 1, 22 + y, 2, 2, 2);
+  // голова
+  disc(cx, 16 + y, 6, 2);
+  // волосы
+  if (gender === "girl") {
+    rect(cx - 6, 10 + y, 12, 3, 0);
+    rect(cx - 6, 13 + y, 2, 9, 0); rect(cx + 4, 13 + y, 2, 9, 0); // длинные пряди
+    rect(cx - 1, 8 + y, 3, 2, 1);   // бант
+  } else {
+    rect(cx - 6, 10 + y, 12, 3, 0);
+    rect(cx - 6, 10 + y, 2, 5, 0); rect(cx + 4, 10 + y, 2, 5, 0);
+  }
+  // лицо: глаза
+  const blink = (Math.floor(perfNow / 240) % 17 === 0); // моргание
+  if (blink) {
+    px(cx - 3, 16 + y, 0); px(cx - 2, 16 + y, 0);
+    px(cx + 2, 16 + y, 0); px(cx + 3, 16 + y, 0);
+  } else {
+    px(cx - 3, 16 + y, 0); px(cx + 3, 16 + y, 0);
+  }
+  // рот
+  if (singing) {
+    disc(cx, 19 + y, 1, 0);            // открыт (поёт)
+  } else if (mood === "sad") {
+    px(cx - 1, 20 + y, 0); px(cx, 19 + y, 0); px(cx + 1, 20 + y, 0);
+  } else {
+    px(cx - 1, 19 + y, 0); px(cx, 19 + y, 0); px(cx + 1, 19 + y, 0); // улыбка
+  }
+  // слёзы
+  if (tears) {
+    px(cx - 3, 18 + y, 2); px(cx - 3, 19 + y, 2);
+    px(cx + 3, 18 + y, 2); px(cx + 3, 19 + y, 2);
   }
 }
 
-function drawMic(x, y) {
-  // держатель
-  for (let i = 0; i < 10; i++) px(x, y + i, "#888");
-  // головка микрофона
-  disc(x, y, 3, PAL.s);
-  ring(x, y, 3, PAL.o);
+// ---------- интерактив: ноты и звёзды ----------
+let notes = [];   // {x,y,vy}
+let stars = [];   // {x,y,life}
+function spawnNote() {
+  notes.push({ x: 50, y: 26, vy: -0.35, vx: -0.12 });
 }
-
-function star(x, y) {
-  px(x, y, PAL.s); px(x - 1, y, PAL.s); px(x + 1, y, PAL.s);
-  px(x, y - 1, PAL.s); px(x, y + 1, PAL.s);
+function drawNotes() {
+  for (const n of notes) {
+    n.x += n.vx; n.y += n.vy;
+    // ♪ — две точки + штиль
+    px(Math.round(n.x), Math.round(n.y), 0);
+    px(Math.round(n.x), Math.round(n.y) - 1, 0);
+    px(Math.round(n.x) + 1, Math.round(n.y) - 1, 0);
+  }
+  notes = notes.filter(n => n.y > 4);
+}
+function spawnStars(cx) {
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    stars.push({ x: cx + Math.round(Math.cos(a) * 12), y: 18 + Math.round(Math.sin(a) * 10), life: 90 });
+  }
+}
+function drawStars() {
+  for (const s of stars) {
+    s.life--;
+    const c = (s.life % 20 < 10) ? 2 : 0; // мерцание
+    px(s.x, s.y, c); px(s.x - 1, s.y, c); px(s.x + 1, s.y, c);
+    px(s.x, s.y - 1, c); px(s.x, s.y + 1, c);
+  }
+  stars = stars.filter(s => s.life > 0);
 }
 
 // ---------- данные ----------
+let perfNow = 0;
 function parseData() {
-  const def = { level: 1, xp: 0, streak: 0,
-                tech: 20, health: 20, char: 20, theory: 20 };
+  const def = { level: 1, xp: 0, streak: 0, tech: 20, health: 20, char: 20, theory: 20, event: "" };
   try {
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-      return Object.assign(def, JSON.parse(tg.initDataUnsafe.start_param));
+      Object.assign(def, JSON.parse(tg.initDataUnsafe.start_param));
     }
   } catch (e) {}
   const q = new URLSearchParams(location.search);
   if ([...q.keys()].length) {
-    for (const k of Object.keys(def)) if (q.has(k)) def[k] = Number(q.get(k));
+    for (const k of ["level","xp","streak","tech","health","char","theory"])
+      if (q.has(k)) def[k] = Number(q.get(k));
+    if (q.has("event")) def.event = q.get("event");
   }
   return def;
 }
-
-function moodFrom(d) {
+function getGender() {
+  const q = new URLSearchParams(location.search);
+  if (q.has("gender")) return q.get("gender") === "girl" ? "girl" : "boy";
+  let g = null;
+  try { g = localStorage.getItem("vt_gender"); } catch (e) {}
+  return g === "girl" ? "girl" : "boy";
+}
+function setGender(g) {
+  try { localStorage.setItem("vt_gender", g); } catch (e) {}
+  document.getElementById("gBoy").classList.toggle("active", g === "boy");
+  document.getElementById("gGirl").classList.toggle("active", g === "girl");
+}
+function moodFrom(d, forcedSad) {
+  if (forcedSad || d.streak === 0) return "sad";
   if (d.streak >= 3 && d.level >= 3) return "proud";
-  if (d.streak === 0) return "sad";
   return "happy";
 }
 const MOOD_TEXT = {
-  proud: "✨ Гордость! Ты на коне.",
-  happy: "😊 Отличное настроение.",
-  sad:  "😢 Соскучился — заходи чаще!",
+  proud:  "✨ Гордость! Ты на коне.",
+  happy:  "😊 Репетиция в полном разгаре.",
+  sad:    "😢 Соскучился — заходи чаще!",
 };
 
 function render() {
   const d = parseData();
+  const gender = getGender();
+  setGender(gender);
   document.getElementById("lvl").textContent = d.level;
   document.getElementById("xp").textContent = d.xp;
   document.getElementById("streak").textContent = d.streak;
-  document.getElementById("mood").textContent = MOOD_TEXT[moodFrom(d)];
 
-  const stats = [
-    ["🎶 Техника", d.tech],
-    ["💚 Здоровье", d.health],
-    ["✨ Харизма", d.char],
-    ["👂 Теория", d.theory],
-  ];
+  const forcedSad = (d.event === "streak_lost");
+  const mood = moodFrom(d, forcedSad);
+  document.getElementById("mood").textContent = MOOD_TEXT[mood];
+
+  // шкалы статов
+  const stats = [["🎶 Техника", d.tech], ["💚 Здоровье", d.health],
+                 ["✨ Харизма", d.char], ["👂 Теория", d.theory]];
   const wrap = document.getElementById("stats");
   wrap.innerHTML = "";
   for (const [name, val] of stats) {
     const pct = Math.max(0, Math.min(100, val));
     const div = document.createElement("div");
     div.className = "stat";
-    div.innerHTML =
-      `<div class="row"><span>${name}</span><span>${pct}</span></div>` +
-      `<div class="bar"><i style="width:${pct}%"></i></div>`;
+    div.innerHTML = `<div class="row"><span>${name}</span><span>${pct}</span></div>` +
+                    `<div class="bar"><i style="width:${pct}%"></i></div>`;
     wrap.appendChild(div);
   }
 
-  // анимация: покачивание + мигание
-  let t = 0;
-  function loop() {
-    t += 0.06;
-    const bob = Math.round(Math.sin(t) * 1.5);
-    drawCharacter(moodFrom(d), bob);
+  // кнопки пола
+  document.getElementById("gBoy").onclick = () => setGender("boy");
+  document.getElementById("gGirl").onclick = () => setGender("girl");
+
+  // таймеры событий
+  let jumpUntil = 0, starUntil = 0;
+  if (d.event === "lesson_done") starUntil = perfNow + 150;
+  if (d.event === "level_up") { jumpUntil = perfNow + 120; starUntil = perfNow + 150; }
+
+  let noteTimer = 0;
+  function loop(ts) {
+    perfNow = ts || 0;
+    ctx.clearRect(0, 0, 64, 64);
+    drawStudio();
+    const cx = 30;
+    let bob = Math.round(Math.sin(perfNow / 320) * 1.2);
+    const jumping = perfNow < jumpUntil;
+    if (jumping) bob -= Math.round(Math.abs(Math.sin(perfNow / 90)) * 5);
+    const singing = (mood !== "sad") || d.event === "lesson_done" || d.event === "level_up";
+    drawChar(cx, bob, gender, mood, singing, forcedSad);
+
+    // ноты (артист поёт)
+    if (singing) {
+      noteTimer++;
+      if (noteTimer % 22 === 0) spawnNote();
+    }
+    drawNotes();
+    if (perfNow < starUntil) { if (stars.length === 0) spawnStars(cx); }
+    drawStars();
+
     requestAnimationFrame(loop);
   }
-  loop();
+  requestAnimationFrame(loop);
 }
 
 // Telegram адаптация
 try {
   const tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {
-    tg.expand();
-    tg.ready();
+    tg.expand(); tg.ready();
     const cb = document.getElementById("closeBtn");
     cb.style.display = "block";
     cb.onclick = () => tg.close();
-    if (tg.themeParams && tg.themeParams.bg_color) {
-      document.body.style.background = tg.themeParams.bg_color;
-    }
   }
 } catch (e) {}
 
