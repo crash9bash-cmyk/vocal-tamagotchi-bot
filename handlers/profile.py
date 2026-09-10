@@ -34,13 +34,30 @@ async def _load(user_id: int):
     return user, stats
 
 
+def _stats_kwargs(user: User, stats: UserStats | None) -> dict:
+    """Подготовить kwargs для main_menu из user+stats."""
+    s = stats or UserStats()
+    return dict(
+        level=user.level,
+        xp=user.xp,
+        streak=user.current_streak,
+        tech=int(s.vocal_technique),
+        health=int(s.voice_health),
+        char=int(s.charisma),
+        theory=int(s.music_theory),
+    )
+
+
 @router.message(Command("profile"))
 async def cmd_profile(message: Message) -> None:
     user, stats = await _load(message.from_user.id)
     if user is None:
         await message.answer("Сначала нажми /start, чтобы создать артиста.")
         return
-    await message.answer(_format(user, stats), reply_markup=main_menu(MINI_APP_URL))
+    await message.answer(
+        _format(user, stats),
+        reply_markup=main_menu(MINI_APP_URL, **_stats_kwargs(user, stats)),
+    )
 
 
 async def render_profile(query: CallbackQuery) -> None:
@@ -49,4 +66,7 @@ async def render_profile(query: CallbackQuery) -> None:
     if user is None:
         await query.message.answer("Сначала нажми /start.")
         return
-    await query.message.edit_text(_format(user, stats), reply_markup=main_menu(MINI_APP_URL))
+    await query.message.edit_text(
+        _format(user, stats),
+        reply_markup=main_menu(MINI_APP_URL, **_stats_kwargs(user, stats)),
+    )

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>Твой артист</title>
 <style>
-  /* цветовая гамма (как в первой версии визуала) */
   :root {
     --bg: #11203a;
     --panel: #1c2f52;
@@ -50,7 +49,7 @@
   #stage {
     width: 256px; height: 256px;
     image-rendering: pixelated;
-    background: radial-gradient(circle at 50% 38%, #1d3a66 0%, #0a1426 70%);
+    background: #0a1426;
     border: 3px solid #000;
   }
   .meta { display: flex; gap: 6px; margin: 10px 0 4px; flex-wrap: wrap; justify-content: center; }
@@ -59,6 +58,7 @@
     padding: 3px 7px; font-size: 11px; border-radius: 6px;
   }
   .chip b { color: var(--accent); }
+  .tier-lbl { font-size: 10px; color: var(--good); margin: 2px 0 4px; text-align: center; min-height: 14px; }
   .mood { font-size: 11px; color: var(--good); margin-bottom: 6px; min-height: 14px; text-align: center; }
   .section-lbl { font-size: 10px; color: var(--good); margin: 8px 0 3px; letter-spacing: .5px; }
   .gender { display: flex; gap: 8px; margin: 2px 0; align-items: center; justify-content: center; }
@@ -97,6 +97,7 @@
       <span class="chip">XP <b id="xp">0</b></span>
       <span class="chip">🔥 <b id="streak">0</b></span>
     </div>
+    <div class="tier-lbl" id="tierLbl"></div>
     <div class="mood" id="mood">…</div>
 
     <div class="section-lbl">Пол</div>
@@ -116,54 +117,451 @@
 </div>
 
 <script>
-// ---------- базовая палитра ----------
-// 0 контур/глаза | 1 одежда(резерв) | 2 кожа | 3 трава/листва
+// ============================================================
+//  VOCAL TAMAGOTCHI — Mini App
+//  Стиль: Game Dev Tycoon (псевдо-изометрия, room-as-progress)
+//  Canvas 64x64, pixelated, процедурная отрисовка
+// ============================================================
+
+// ---------- палитра ----------
+// 0 контур/глаза | 1 резерв | 2 кожа | 3 трава/листва
 // 4 волосы | 5 микрофон/акцент | 6 рот | 7 щёчки | 8 блик/ноты/белок
 const PAL = ["#1a1c2c", "#ef7d57", "#ffcd75", "#38b764",
              "#6b4226", "#41a6f6", "#b13e53", "#ff77a8", "#fff1e8"];
 
-// палитра свотчей для кастомизации верха/низа
 const SWATCHES = ["#ef7d57", "#41a6f6", "#38b764", "#b13e53",
                   "#ffcd75", "#ff77a8", "#6b4226", "#fff1e8"];
-const DEF_TOP = "#ef7d57";   // оранжевый верх по умолчанию
-const DEF_BOT = "#41a6f6";   // синий низ по умолчанию
+const DEF_TOP = "#ef7d57";
+const DEF_BOT = "#41a6f6";
 
 const cv = document.getElementById("stage");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-// px/rect/disc принимают либо индекс PAL (число), либо hex-строку
 function col(c) { return (typeof c === "number") ? PAL[c] : c; }
-function px(x, y, c) { if (c == null) return; ctx.fillStyle = col(c); ctx.fillRect(x, y, 1, 1); }
-function rect(x, y, w, h, c) { const cc = col(c); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, cc); }
-function disc(cx, cy, r, c) {
+function px(x, y, c) { if (c == null) return; x = Math.round(x); y = Math.round(y); ctx.fillStyle = col(c); ctx.fillRect(x, y, 1, 1); }
+function rect(x, y, w, h, c) { const cc = col(c); x = Math.round(x); y = Math.round(y); for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) ctx.fillRect(x + i, y + j, 1, 1); }
+function disc(cx_, cy_, r, c) {
+  cx_ = Math.round(cx_); cy_ = Math.round(cy_); r = Math.round(r);
   for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++)
-    if (x*x + y*y <= r*r) px(cx + x, cy + y, c);
+    if (x*x + y*y <= r*r) { ctx.fillStyle = col(c); ctx.fillRect(cx_ + x, cy_ + y, 1, 1); }
 }
 
-// ---------- сцена: студия ----------
-function drawStudio() {
-  const g = ctx.createRadialGradient(32, 24, 4, 32, 32, 42);
-  g.addColorStop(0, "#1d3a66"); g.addColorStop(1, "#0a1426");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
-  rect(0, 52, 64, 12, 0);             // пол (тёмный)
-  rect(0, 52, 64, 1, 2);              // линия пола (светлая)
-  rect(4, 9, 12, 15, 1); rect(5, 10, 10, 13, 5);   // зеркало (слева)
-  rect(45, 5, 10, 12, 1); rect(46, 6, 8, 10, 2);   // постер (справа)
-  px(49, 9, 8); px(49, 10, 8); px(50, 11, 8);      // нотка на постере
-  rect(3, 47, 7, 6, 1); disc(6, 44, 3, 3); rect(5, 41, 3, 4, 3); // растение
-  rect(52, 29, 1, 23, 0); rect(50, 51, 5, 2, 0);   // микрофон: стойка + основание
-  disc(52, 28, 3, 5); px(51, 27, 8); px(53, 27, 8); // головка + блик
+// ---------- система вех (milestones) ----------
+// Tier 0: гараж/комната новичка
+// Tier 1: репетиционная (xp>=100 || streak>=3)
+// Tier 2: студия (xp>=500 || streak>=7)
+// Tier 3: топ-студия (xp>=2000 || streak>=14)
+const TIERS = [
+  { name: "🏠 Своя комната",   minXP: 0,    minStreak: 0  },
+  { name: "🎼 Репетиционная",  minXP: 100,  minStreak: 3  },
+  { name: "🎧 Студия",         minXP: 500,  minStreak: 7  },
+  { name: "🏆 Топ-студия",     minXP: 2000, minStreak: 14 },
+];
+function tierFromData(d) {
+  let tier = 0;
+  for (let i = 1; i < TIERS.length; i++) {
+    if (d.xp >= TIERS[i].minXP || d.streak >= TIERS[i].minStreak) tier = i;
+  }
+  return tier;
+}
+function nextTierInfo(d) {
+  const t = tierFromData(d);
+  if (t >= TIERS.length - 1) return null;
+  const next = TIERS[t + 1];
+  const xpLeft = Math.max(0, next.minXP - d.xp);
+  const streakLeft = Math.max(0, next.minStreak - d.streak);
+  return { name: next.name, xpLeft, streakLeft };
 }
 
-// ---------- аксессуары (задел под награды за уровни) ----------
-// управляются списком `acc` из данных (parseData), напр. ?acc=cap,star
+// ---------- палитры комнат по tier ----------
+const ROOM_PALETTES = [
+  { // Tier 0: гараж
+    wallTop: "#1a2845", wallMid: "#15203a", wallBot: "#101830",
+    floor: "#2a2040", floorEdge: "#3a3050",
+    trim: "#3b2d5c", accent: "#4a3a6e",
+  },
+  { // Tier 1: репетиционная
+    wallTop: "#1d3a5a", wallMid: "#183050", wallBot: "#132848",
+    floor: "#2a3050", floorEdge: "#3a4060",
+    trim: "#3b5a8c", accent: "#4a6a9e",
+  },
+  { // Tier 2: студия
+    wallTop: "#2a4050", wallMid: "#243a48", wallBot: "#1e3340",
+    floor: "#2a3a48", floorEdge: "#3a4a58",
+    trim: "#3b6080", accent: "#4a7090",
+  },
+  { // Tier 3: топ-студия
+    wallTop: "#3a3550", wallMid: "#302a48", wallBot: "#282040",
+    floor: "#3a3048", floorEdge: "#4a4058",
+    trim: "#6b5a9c", accent: "#8a70b0",
+  },
+];
+
+// ---------- псевдо-изометрия ----------
+// Конвертируем grid-координаты (gx,gy) в экранные (sx,sy).
+// Центр комнаты — (32, 34). Угол ~30°.
+const ISO_TX = 32;  // центр X
+const ISO_TY = 34;  // центр Y (сдвинут вниз — верх留给 стене)
+const ISO_HW = 16;  // половина ширины ромба по X
+const ISO_HH = 8;   // половина высоты ромба по Y
+function isoX(gx, gy) { return ISO_TX + (gx - gy) * ISO_HW; }
+function isoY(gx, gy) { return ISO_TY + (gx + gy) * ISO_HH; }
+
+// ---------- отрисовка пола (ромб) ----------
+function drawFloor(pal) {
+  // ромб 4x4 в grid-координатах: от (-2,-2) до (2,2)
+  // заполняем все точки где |gx|+|gy| <= 2
+  for (let gx = -2; gx <= 2; gx++) {
+    for (let gy = -2; gy <= 2; gy++) {
+      if (Math.abs(gx) + Math.abs(gy) <= 2) {
+        const sx = isoX(gx, gy);
+        const sy = isoY(gx, gy);
+        // плита 32x16 px (2*ISO_HW x 2*ISO_HH)
+        // рисуем параллелограмм
+        drawIsoTile(sx, sy, pal.floor);
+      }
+    }
+  }
+  // рёбра/контур
+  drawFloorEdges(pal);
+}
+function drawIsoTile(cx, cy, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - ISO_HH);
+  ctx.lineTo(cx + ISO_HW, cy);
+  ctx.lineTo(cx, cy + ISO_HH);
+  ctx.lineTo(cx - ISO_HW, cy);
+  ctx.closePath();
+  ctx.fill();
+}
+function drawFloorEdges(pal) {
+  // контур ромба — 4 стороны
+  const corners = [
+    [isoX(-2,0), isoY(-2,0)],  // задний левый
+    [isoX(0,-2), isoY(0,-2)],  // задний правый
+    [isoX(2,0),  isoY(2,0)],   // передний правый
+    [isoX(0,2),  isoY(0,2)],   // передний левый
+  ];
+  // упрощаем: рисуем линии пола как пиксели
+  for (let gx = -2; gx <= 2; gx++) {
+    for (let gy = -2; gy <= 2; gy++) {
+      if (Math.abs(gx) + Math.abs(gy) === 2) {
+        // крайние плиты — рисуем обводку
+        const sx = isoX(gx, gy);
+        const sy = isoY(gx, gy);
+        ctx.fillStyle = pal.floorEdge;
+        // верхнее ребро
+        ctx.fillRect(sx - 1, sy - ISO_HH, 1, 1);
+        ctx.fillRect(sx + ISO_HW - 1, sy - 1, 1, 1);
+      }
+    }
+  }
+}
+
+// ---------- отрисовка задней стены ----------
+function drawBackWall(pal, tier) {
+  // стена занимает верхнюю часть канваса
+  // заливаем фон градиентом
+  const g = ctx.createLinearGradient(0, 0, 0, 48);
+  g.addColorStop(0, pal.wallTop);
+  g.addColorStop(0.6, pal.wallMid);
+  g.addColorStop(1, pal.wallBot);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 40);
+
+  // плинтус
+  ctx.fillStyle = pal.trim;
+  ctx.fillRect(0, 39, 64, 2);
+
+  // декор стены зависит от tier
+  if (tier >= 0) {
+    // простая рамка/окно
+    drawWindow(8, 6, pal);
+  }
+  if (tier >= 1) {
+    // второе окно
+    drawWindow(44, 6, pal);
+    // полка
+    drawShelf(3, 30, pal, false);
+  }
+  if (tier >= 2) {
+    // золотой микрофон на полке
+    drawShelf(3, 30, pal, true);
+    // плакат
+    drawPoster(48, 20, pal);
+  }
+  if (tier >= 3) {
+    // платиновый диск
+    drawPlatinumDisc(48, 5, pal);
+    // аркадный автомат
+    drawArcade(54, 30, pal);
+  }
+}
+
+function drawWindow(x, y, pal) {
+  // окно 12x10 с рамкой
+  ctx.fillStyle = pal.trim;
+  ctx.fillRect(x - 1, y - 1, 14, 12);
+  // стекло
+  ctx.fillStyle = "#2a4a6a";
+  ctx.fillRect(x, y, 12, 10);
+  // небо/закат
+  ctx.fillStyle = "#41a6f6";
+  ctx.fillRect(x, y, 12, 5);
+  ctx.fillStyle = "#ffcd75";
+  ctx.fillRect(x + 5, y + 2, 2, 2);  // солнце
+  // перекладина
+  ctx.fillStyle = pal.trim;
+  ctx.fillRect(x + 5, y, 2, 10);
+  ctx.fillRect(x, y + 4, 12, 1);
+}
+
+function drawShelf(x, y, pal, hasGoldMic) {
+  // полка
+  ctx.fillStyle = pal.trim;
+  ctx.fillRect(x, y, 10, 2);
+  ctx.fillRect(x, y + 2, 1, 6);
+  ctx.fillRect(x + 9, y + 2, 1, 6);
+  // книги/предметы
+  const colors = ["#b13e53", "#41a6f6", "#38b764", "#ffcd75"];
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(x + 1 + i * 2, y - 4, 2, 4);
+  }
+  if (hasGoldMic) {
+    // золотой микрофон на полке
+    ctx.fillStyle = "#ffcd75";
+    ctx.fillRect(x + 4, y - 8, 2, 4);
+    disc(x + 5, y - 9, 2, "#ffcd75");
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(x + 5, y - 10, 1, 1);  // блик
+  }
+}
+
+function drawPoster(x, y, pal) {
+  // постер на стене
+  ctx.fillStyle = "#1a1c2c";
+  ctx.fillRect(x - 1, y - 1, 12, 14);
+  ctx.fillStyle = "#38b764";
+  ctx.fillRect(x, y, 10, 12);
+  // нотка на постере
+  ctx.fillStyle = "#fff1e8";
+  ctx.fillRect(x + 3, y + 3, 1, 5);
+  ctx.fillRect(x + 3, y + 8, 3, 1);
+  ctx.fillRect(x + 5, y + 4, 1, 4);
+}
+
+function drawPlatinumDisc(x, y, pal) {
+  // диск в рамке на стене
+  ctx.fillStyle = pal.trim;
+  ctx.fillRect(x - 1, y - 1, 12, 12);
+  disc(x + 5, y + 5, 5, "#fff1e8");
+  disc(x + 5, y + 5, 4, "#c0c0d0");
+  disc(x + 5, y + 5, 2, "#ffcd75");
+  ctx.fillStyle = "#1a1c2c";
+  ctx.fillRect(x + 5, y + 5, 1, 1);
+}
+
+function drawArcade(x, y, pal) {
+  // маленький аркадный автомат
+  ctx.fillStyle = "#1a1c2c";
+  ctx.fillRect(x, y, 8, 10);
+  ctx.fillStyle = "#b13e53";
+  ctx.fillRect(x + 1, y + 1, 6, 5);
+  ctx.fillStyle = "#41a6f6";
+  ctx.fillRect(x + 2, y + 2, 4, 3);
+  ctx.fillStyle = "#ffcd75";
+  ctx.fillRect(x + 2, y + 7, 1, 1);
+  ctx.fillRect(x + 5, y + 7, 1, 1);
+  ctx.fillRect(x + 3, y + 7, 2, 1);
+}
+
+// ---------- мебель/объекты на полу (3-face) ----------
+function drawFloorObject(gx, gy, kind, pal, lit) {
+  const sx = isoX(gx, gy);
+  const sy = isoY(gx, gy);
+  // смещаем вниз, чтобы объект "стоял" на тайле
+  const ox = sx, oy = sy + 2;
+
+  if (kind === "mic") {
+    // микрофон на стойке
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(ox - 1, oy - 14, 1, 14);  // стойка
+    ctx.fillRect(ox - 3, oy, 7, 1);         // основание
+    disc(ox, oy - 15, 3, lit ? "#ffcd75" : "#41a6f6");  // головка
+    if (lit) {
+      // свечение
+      px(ox - 1, oy - 16, "#fff1e8");
+      px(ox + 1, oy - 16, "#fff1e8");
+      px(ox, oy - 17, "#fff1e8");
+    }
+    px(ox - 1, oy - 16, "#fff1e8");  // блик
+  } else if (kind === "plant") {
+    // растение в горшке
+    ctx.fillStyle = "#6b4226";
+    ctx.fillRect(ox - 2, oy - 3, 5, 3);  // горшок
+    ctx.fillStyle = "#38b764";
+    ctx.fillRect(ox - 1, oy - 7, 3, 4);  // стебель
+    disc(ox, oy - 8, 3, "#38b764");       // листва
+    px(ox - 2, oy - 9, "#38b764");
+    px(ox + 2, oy - 9, "#38b764");
+    px(ox, oy - 11, "#38b764");
+  } else if (kind === "speaker") {
+    // колонка
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(ox - 3, oy - 12, 6, 12);
+    ctx.fillStyle = "#2a2a3c";
+    ctx.fillRect(ox - 2, oy - 11, 4, 4);  // верхний динамик
+    ctx.fillStyle = "#0a0a1c";
+    disc(ox, oy - 9, 1, "#0a0a1c");
+    ctx.fillStyle = "#2a2a3c";
+    ctx.fillRect(ox - 2, oy - 5, 4, 4);   // нижний динамик
+    disc(ox, oy - 3, 1, "#0a0a1c");
+    if (lit) {
+      px(ox - 2, oy - 9, "#ffcd75");
+      px(ox + 2, oy - 9, "#ffcd75");
+    }
+  } else if (kind === "piano") {
+    // синтезатор/пианино
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(ox - 5, oy - 4, 11, 4);   // корпус
+    ctx.fillStyle = "#2a2a3c";
+    ctx.fillRect(ox - 5, oy - 5, 11, 1);   // панель
+    ctx.fillStyle = "#fff1e8";
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(ox - 4 + i * 2, oy - 4, 1, 2);  // клавиши
+    }
+    // чёрные клавиши
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(ox - 3, oy - 4, 1, 1);
+    ctx.fillRect(ox + 1, oy - 4, 1, 1);
+    if (lit) {
+      px(ox, oy - 6, "#ffcd75");
+    }
+  } else if (kind === "sofa") {
+    // диван
+    ctx.fillStyle = "#b13e53";
+    ctx.fillRect(ox - 5, oy - 6, 11, 6);
+    ctx.fillStyle = "#8a2e44";
+    ctx.fillRect(ox - 5, oy - 6, 2, 6);    // левый подлокотник
+    ctx.fillRect(ox + 4, oy - 6, 2, 6);    // правый подлокотник
+    ctx.fillStyle = "#d15068";
+    ctx.fillRect(ox - 3, oy - 5, 7, 2);    // подушки
+    ctx.fillRect(ox - 3, oy - 2, 7, 2);
+  } else if (kind === "lamp") {
+    // торшер
+    ctx.fillStyle = "#1a1c2c";
+    ctx.fillRect(ox, oy - 12, 1, 12);      // стойка
+    ctx.fillStyle = "#3a2a1c";
+    ctx.fillRect(ox - 3, oy, 7, 1);         // основание
+    ctx.fillStyle = lit ? "#ffcd75" : "#6b5226";
+    // абажур (треугольник пикселями)
+    ctx.fillRect(ox - 2, oy - 14, 5, 2);
+    ctx.fillRect(ox - 1, oy - 15, 3, 1);
+    if (lit) {
+      // световое пятно
+      px(ox - 3, oy - 13, "#ffcd75");
+      px(ox + 3, oy - 13, "#ffcd75");
+    }
+  } else if (kind === "rug") {
+    // ковёр на полу (рисуется как плоский изометрический тайл)
+    ctx.fillStyle = "#b13e53";
+    ctx.beginPath();
+    ctx.moveTo(ox, oy - ISO_HH);
+    ctx.lineTo(ox + ISO_HW, oy);
+    ctx.lineTo(ox, oy + ISO_HH);
+    ctx.lineTo(ox - ISO_HW, oy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ffcd75";
+    ctx.fillRect(ox - 1, oy - 1, 2, 1);
+  }
+}
+
+// ---------- объекты по tier ----------
+function getFloorObjects(tier) {
+  // всегда есть микрофон и растение
+  const objs = [
+    { gx: 1,  gy: 1,  kind: "mic",   lit: false },
+    { gx: -1, gy: 1,  kind: "plant", lit: false },
+  ];
+  if (tier >= 1) {
+    objs.push({ gx: -1, gy: -1, kind: "speaker", lit: false });
+    objs.push({ gx: 0,  gy: 0,  kind: "rug",    lit: false });
+  }
+  if (tier >= 2) {
+    objs.push({ gx: 1,  gy: -1, kind: "piano",  lit: false });
+    objs.push({ gx: -1, gy: 0,  kind: "lamp",   lit: false });
+  }
+  if (tier >= 3) {
+    objs.push({ gx: 0,  gy: -1, kind: "sofa",   lit: false });
+    // апгрейдим микрофон до золотого
+    objs[0].lit = true;
+  }
+  return objs;
+}
+
+// ---------- эмоции (иконки над головой) ----------
+function drawEmotion(cx, headTop, type, frame) {
+  const ex = cx;
+  const ey = headTop - 4;
+  const bob = Math.round(Math.sin(frame / 400) * 1);
+  const y = ey + bob;
+
+  if (type === "idea") {
+    // лампочка
+    disc(ex, y, 2, "#ffcd75");
+    px(ex, y - 3, "#ffcd75");
+    px(ex - 1, y + 2, "#1a1c2c");
+    px(ex, y + 2, "#1a1c2c");
+    px(ex + 1, y + 2, "#1a1c2c");
+    // лучики
+    px(ex - 3, y, "#fff1e8"); px(ex + 3, y, "#fff1e8");
+    px(ex, y - 4, "#fff1e8");
+  } else if (type === "note") {
+    // нота
+    px(ex, y, "#fff1e8"); px(ex, y - 1, "#fff1e8");
+    px(ex + 1, y - 1, "#fff1e8"); px(ex + 2, y - 1, "#fff1e8");
+    px(ex + 2, y, "#fff1e8");
+    // флаг
+    px(ex + 1, y - 3, "#fff1e8");
+  } else if (type === "tired") {
+    // Zzz
+    px(ex, y, "#fff1e8");     // Z
+    px(ex + 1, y, "#fff1e8");
+    px(ex, y + 1, "#fff1e8");
+    px(ex + 1, y + 2, "#fff1e8");
+    px(ex, y + 2, "#fff1e8");
+    // маленькая z
+    px(ex + 3, y + 3, "#fff1e8");
+    px(ex + 4, y + 3, "#fff1e8");
+    px(ex + 3, y + 4, "#fff1e8");
+    px(ex + 3, y + 5, "#fff1e8");
+    px(ex + 4, y + 5, "#fff1e8");
+  } else if (type === "happy") {
+    // сердечко
+    px(ex - 1, y, "#ff77a8"); px(ex + 1, y, "#ff77a8");
+    px(ex - 2, y + 1, "#ff77a8"); px(ex, y + 1, "#ff77a8"); px(ex + 2, y + 1, "#ff77a8");
+    px(ex - 1, y + 2, "#ff77a8"); px(ex + 1, y + 2, "#ff77a8");
+    px(ex, y + 3, "#ff77a8");
+  } else if (type === "star") {
+    // звёздочка
+    px(ex, y - 2, "#ffcd75");
+    px(ex - 1, y - 1, "#ffcd75"); px(ex + 1, y - 1, "#ffcd75");
+    px(ex - 2, y, "#ffcd75"); px(ex, y, "#ffcd75"); px(ex + 2, y, "#ffcd75");
+    px(ex - 1, y + 1, "#ffcd75"); px(ex + 1, y + 1, "#ffcd75");
+  }
+}
+
+// ---------- аксессуары (награды за уровни) ----------
 function drawAcc(a, cx, y, gender) {
-  const hy = (gender === "girl") ? 16 + y : 8 + y; // макушка
+  const hy = (gender === "girl") ? 16 + y : 8 + y;
   if (a === "cap") {
-    rect(cx - 6, hy - 1, 13, 3, 6);   // козырёк
-    rect(cx - 5, hy - 3, 11, 2, 6);   // донышко
-    px(cx + 7, hy, 6);                // козырёк вправо
+    rect(cx - 6, hy - 1, 13, 3, 6);
+    rect(cx - 5, hy - 3, 11, 2, 6);
+    px(cx + 7, hy, 6);
   } else if (a === "glasses") {
     const ey = (gender === "girl") ? 22 + y : 14 + y;
     rect(cx - 5, ey, 4, 2, 0); rect(cx + 1, ey, 4, 2, 0);
@@ -171,49 +569,51 @@ function drawAcc(a, cx, y, gender) {
   } else if (a === "star") {
     const ty = (gender === "girl") ? 33 + y : 27 + y;
     px(cx + 4, ty, 8); px(cx + 3, ty + 1, 8); px(cx + 5, ty + 1, 8);
-    px(cx + 4, ty + 2, 8);            // значок-звезда на груди
+    px(cx + 4, ty + 2, 8);
+  } else if (a === "goldchain") {
+    // золотая цепь
+    const necy = (gender === "girl") ? 30 + y : 22 + y;
+    for (let i = -3; i <= 3; i++) px(cx + i, necy, "#ffcd75");
+    px(cx, necy + 1, "#ffcd75");
   }
 }
 
-// ---------- персонаж (полный рост) ----------
-// у мальчика и девочки РАЗНЫЕ пропорции и силуэт
+// ---------- персонаж ----------
 function drawChar(cx, bob, gender, top, bot, mood, singing, tears, acc) {
   const y = bob;
 
   if (gender === "girl") {
-    // ДЕВОЧКА: ниже, стройнее, платье, длинные волосы
-    rect(cx - 3, 44 + y, 2, 4, 0); rect(cx + 1, 44 + y, 2, 4, 0);   // ноги
-    px(cx - 3, 48 + y, 0); px(cx - 2, 48 + y, 0);                    // туфли
+    rect(cx - 3, 44 + y, 2, 4, 0); rect(cx + 1, 44 + y, 2, 4, 0);
+    px(cx - 3, 48 + y, 0); px(cx - 2, 48 + y, 0);
     px(cx + 1, 48 + y, 0); px(cx + 2, 48 + y, 0);
-    rect(cx - 5, 38 + y, 10, 2, bot);                                // юбка (низ)
+    rect(cx - 5, 38 + y, 10, 2, bot);
     rect(cx - 6, 40 + y, 12, 3, bot);
     rect(cx - 7, 43 + y, 14, 2, bot);
-    rect(cx - 4, 30 + y, 8, 8, top);                                 // лиф (верх)
-    rect(cx - 6, 31 + y, 2, 8, top);                                // левая рука
-    if (singing) {                                                   // правая рука вверх
+    rect(cx - 4, 30 + y, 8, 8, top);
+    rect(cx - 6, 31 + y, 2, 8, top);
+    if (singing) {
       px(cx + 5, 33 + y, top); px(cx + 6, 32 + y, top);
       px(cx + 7, 31 + y, top); px(cx + 8, 31 + y, top); px(cx + 9, 32 + y, top);
     } else rect(cx + 5, 31 + y, 2, 8, top);
-    rect(cx - 1, 28 + y, 2, 2, 2);                                   // шея
-    disc(cx, 22 + y, 6, 2);                                          // голова
-    rect(cx - 6, 16 + y, 12, 3, 4);                                  // волосы (длинные)
+    rect(cx - 1, 28 + y, 2, 2, 2);
+    disc(cx, 22 + y, 6, 2);
+    rect(cx - 6, 16 + y, 12, 3, 4);
     rect(cx - 6, 19 + y, 2, 10, 4); rect(cx + 4, 19 + y, 2, 10, 4);
-    rect(cx - 1, 14 + y, 3, 2, 1);                                   // бант
+    rect(cx - 1, 14 + y, 3, 2, 1);
     drawFaceGirl(cx, y, mood, tears);
   } else {
-    // МАЛЬЧИК: выше, блочнее, футболка + штаны
-    rect(cx - 5, 36 + y, 4, 12, bot); rect(cx + 1, 36 + y, 4, 12, bot); // штанины (низ)
-    rect(cx - 5, 47 + y, 4, 2, 0); rect(cx + 1, 47 + y, 4, 2, 0);       // ботинки
-    rect(cx - 6, 22 + y, 12, 3, top);                                 // плечи (верх)
-    rect(cx - 5, 25 + y, 10, 11, top);                                // торс
-    rect(cx - 7, 24 + y, 2, 11, top);                                // левая рука
+    rect(cx - 5, 36 + y, 4, 12, bot); rect(cx + 1, 36 + y, 4, 12, bot);
+    rect(cx - 5, 47 + y, 4, 2, 0); rect(cx + 1, 47 + y, 4, 2, 0);
+    rect(cx - 6, 22 + y, 12, 3, top);
+    rect(cx - 5, 25 + y, 10, 11, top);
+    rect(cx - 7, 24 + y, 2, 11, top);
     if (singing) {
       px(cx + 5, 26 + y, top); px(cx + 6, 25 + y, top);
       px(cx + 7, 24 + y, top); px(cx + 8, 24 + y, top); px(cx + 9, 25 + y, top);
     } else rect(cx + 5, 24 + y, 2, 11, top);
-    rect(cx - 1, 20 + y, 2, 2, 2);                                   // шея
-    disc(cx, 14 + y, 6, 2);                                          // голова
-    rect(cx - 6, 8 + y, 12, 3, 4);                                   // волосы (короткие)
+    rect(cx - 1, 20 + y, 2, 2, 2);
+    disc(cx, 14 + y, 6, 2);
+    rect(cx - 6, 8 + y, 12, 3, 4);
     rect(cx - 6, 11 + y, 2, 4, 4); rect(cx + 4, 11 + y, 2, 4, 4);
     drawFaceBoy(cx, y, mood, tears);
   }
@@ -226,7 +626,7 @@ function drawFaceBoy(cx, y, mood, tears) {
   const blink = (Math.floor(perfNow / 240) % 17 === 0);
   if (blink) { px(cx - 3, ey, 0); px(cx - 2, ey, 0); px(cx + 2, ey, 0); px(cx + 3, ey, 0); }
   else { px(cx - 3, ey, 0); px(cx + 3, ey, 0); }
-  px(cx - 4, ey + 2, 7); px(cx + 4, ey + 2, 7);   // щёчки
+  px(cx - 4, ey + 2, 7); px(cx + 4, ey + 2, 7);
   drawMouth(cx, ey + 5, mood, tears);
   if (tears) { px(cx - 3, ey + 1, 5); px(cx - 3, ey + 2, 5); px(cx + 3, ey + 1, 5); px(cx + 3, ey + 2, 5); }
 }
@@ -242,13 +642,13 @@ function drawFaceGirl(cx, y, mood, tears) {
 function drawMouth(cx, my, mood, tears) {
   if (tears) { px(cx - 1, my, 6); px(cx, my - 1, 6); px(cx + 1, my, 6); }
   else if (mood === "sad") { px(cx - 1, my + 1, 6); px(cx, my, 6); px(cx + 1, my + 1, 6); }
-  else { disc(cx, my, 1, 6); }   // открытый рот — поёт/радуется
+  else { disc(cx, my, 1, 6); }
 }
 
-// ---------- интерактив: ноты и звёзды ----------
+// ---------- частицы: ноты и звёзды ----------
 let notes = [];
 let stars = [];
-function spawnNote() { notes.push({ x: 50, y: 26, vy: -0.35, vx: -0.12 }); }
+function spawnNote() { notes.push({ x: 30, y: 26, vy: -0.35, vx: -0.12 + Math.random() * 0.24 }); }
 function drawNotes() {
   for (const n of notes) {
     n.x += n.vx; n.y += n.vy;
@@ -273,6 +673,25 @@ function drawStars() {
   stars = stars.filter(s => s.life > 0);
 }
 
+// ---------- подход к микрофону (активация) ----------
+// Герой циклически подходит к микрофону и "поёт"
+function getHeroApproach(perfNow, tier) {
+  // цикл 6 секунд: 0-3s у микрофона (поёт), 3-4.5s отходит, 4.5-6s возвращается
+  const cycle = 6000;
+  const phase = (perfNow % cycle) / cycle;
+  if (phase < 0.5) {
+    // у микрофона
+    return { atMic: true, offsetX: 0, singing: true };
+  } else if (phase < 0.75) {
+    // отошёл — к пианино/колонке
+    return { atMic: false, offsetX: -8, singing: false };
+  } else {
+    // возвращается
+    const t = (phase - 0.75) / 0.25;
+    return { atMic: false, offsetX: -8 + Math.round(t * 8), singing: false };
+  }
+}
+
 // ---------- данные и состояние кастомизации ----------
 let perfNow = 0;
 function parseData() {
@@ -291,6 +710,7 @@ function parseData() {
       if (q.has(k)) def[k] = Number(q.get(k));
     if (q.has("event")) def.event = q.get("event");
     if (q.has("acc")) def.acc = q.get("acc").split(",").filter(Boolean);
+    if (q.has("gender")) def.gender = q.get("gender");
   }
   if (typeof def.acc === "string") def.acc = def.acc.split(",").filter(Boolean);
   return def;
@@ -319,7 +739,6 @@ function setBot(c) {
   markSwatch("botSwatches", c);
 }
 
-// построим свотчи из SWATCHES
 function buildSwatches() {
   for (const id of ["topSwatches", "botSwatches"]) {
     const wrap = document.getElementById(id);
@@ -350,6 +769,24 @@ const MOOD_TEXT = {
   sad:    "😢 Соскучился — заходи чаще!",
 };
 
+// эмоция в зависимости от настроения и фазы
+function emotionFor(mood, approach, perfNow) {
+  if (mood === "sad") return "tired";
+  if (approach.atMic && approach.singing) return "note";
+  if (!approach.atMic) return "idea";
+  return "happy";
+}
+
+// аксессуары, разблокируемые по tier
+function accForTier(tier) {
+  const acc = [];
+  if (tier >= 1) acc.push("cap");
+  if (tier >= 2) acc.push("glasses");
+  if (tier >= 3) acc.push("goldchain");
+  return acc;
+}
+
+// ---------- главный рендер ----------
 function render() {
   const d = parseData();
   const gender = getGender();
@@ -362,6 +799,9 @@ function render() {
   document.getElementById("lvl").textContent = d.level;
   document.getElementById("xp").textContent = d.xp;
   document.getElementById("streak").textContent = d.streak;
+
+  const tier = tierFromData(d);
+  document.getElementById("tierLbl").textContent = TIERS[tier].name;
 
   const forcedSad = (d.event === "streak_lost");
   const mood = moodFrom(d, forcedSad);
@@ -383,10 +823,17 @@ function render() {
   document.getElementById("gBoy").onclick = () => setGender("boy");
   document.getElementById("gGirl").onclick = () => setGender("girl");
 
-  const acc = Array.isArray(d.acc) ? d.acc : [];
+  // объединяем аксессуары из данных и из tier
+  const tierAcc = accForTier(tier);
+  const dataAcc = Array.isArray(d.acc) ? d.acc : [];
+  const acc = [...new Set([...tierAcc, ...dataAcc])];
+
   let jumpUntil = 0, starUntil = 0;
   if (d.event === "lesson_done") starUntil = perfNow + 150;
   if (d.event === "level_up") { jumpUntil = perfNow + 120; starUntil = perfNow + 150; }
+
+  const pal = ROOM_PALETTES[tier];
+  const floorObjects = getFloorObjects(tier);
 
   let noteTimer = 0;
   function loop(ts) {
@@ -395,15 +842,55 @@ function render() {
     const top = getTop();
     const bot = getBot();
     ctx.clearRect(0, 0, 64, 64);
-    drawStudio();
-    const cx = 30;
+
+    // 1. Задняя стена
+    drawBackWall(pal, tier);
+
+    // 2. Пол (изометрический ромб)
+    drawFloor(pal);
+
+    // 3. Объекты на полу (сортируем по глубине: задние первыми)
+    const approach = getHeroApproach(perfNow, tier);
+
+    // Подсветка объектов: микрофон подсвечивается когда герой у него
+    for (const obj of floorObjects) {
+      if (obj.kind === "mic") obj.lit = approach.atMic;
+      if (obj.kind === "piano" && !approach.atMic && approach.offsetX < -4) obj.lit = true;
+      if (obj.kind === "speaker" && approach.singing) obj.lit = true;
+      else if (obj.kind !== "mic" && obj.kind !== "piano" && obj.kind !== "speaker") obj.lit = false;
+    }
+
+    // Сортируем объекты: чем больше gy, тем ближе (рисуется позже)
+    const sorted = [...floorObjects].sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+
+    // Рисуем задние объекты
+    for (const obj of sorted) {
+      if (obj.gx + obj.gy < 0) drawFloorObject(obj.gx, obj.gy, obj.kind, pal, obj.lit);
+    }
+
+    // 4. Персонаж
+    const cx = 30 + approach.offsetX;
     let bob = Math.round(Math.sin(perfNow / 320) * 1.2);
     const jumping = perfNow < jumpUntil;
     if (jumping) bob -= Math.round(Math.abs(Math.sin(perfNow / 90)) * 5);
-    const singing = (mood !== "sad") || d.event === "lesson_done" || d.event === "level_up";
+    const singing = approach.singing || (mood !== "sad") || d.event === "lesson_done" || d.event === "level_up";
     drawChar(cx, bob, gender, top, bot, mood, singing, forcedSad, acc);
 
-    if (singing) {
+    // Эмоция над головой
+    const emoType = emotionFor(mood, approach, perfNow);
+    const headTop = (gender === "girl") ? 16 + bob : 8 + bob;
+    // показываем эмоцию не всегда, а с пульсацией
+    if (Math.floor(perfNow / 500) % 3 !== 0) {
+      drawEmotion(cx, headTop, emoType, perfNow);
+    }
+
+    // 5. Передние объекты (рисуются поверх персонажа)
+    for (const obj of sorted) {
+      if (obj.gx + obj.gy >= 0 && obj.kind !== "rug") drawFloorObject(obj.gx, obj.gy, obj.kind, pal, obj.lit);
+    }
+
+    // 6. Частицы
+    if (singing && approach.atMic) {
       noteTimer++;
       if (noteTimer % 22 === 0) spawnNote();
     }
@@ -426,7 +913,6 @@ try {
   }
 } catch (e) {}
 
-// редактируемое имя артиста в шапке (хранится в localStorage)
 const nameInput = document.getElementById("nameInput");
 nameInput.value = lsGet("vt_name", "Твой артист");
 nameInput.addEventListener("input", () => {

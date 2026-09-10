@@ -16,6 +16,11 @@ env/
 *.sqlite3
 /data/
 
+# ngrok (binary скачивается локально, не коммитим)
+ngrok.zip
+ngrok_bin/
+ngrok.exe
+
 # WorkBuddy
 .workbuddy-ai/
 

@@ -1,23 +1,50 @@
 """Inline-клавиатуры (по плану: Inline-кнопки для уроков/квизов)."""
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def main_menu(artist_url: str | None = None) -> InlineKeyboardMarkup:
+def main_menu(
+    artist_url: str | None = None,
+    *,
+    level: int = 1,
+    xp: int = 0,
+    streak: int = 0,
+    tech: int = 20,
+    health: int = 20,
+    char: int = 20,
+    theory: int = 20,
+) -> InlineKeyboardMarkup:
     """Кнопки под стартовым сообщением.
 
     artist_url — HTTPS-ссылка на Mini App «Твой артист».
     Если не задана — кнопка Mini App не показывается (локальный режим).
+
+    Stats-параметры добавляются в URL как query-params, чтобы Mini App
+    мог эволюционировать окружение по XP/стрику.
     """
     builder = InlineKeyboardBuilder()
     builder.button(text="🎤 Твой артист", callback_data="open_profile")
     builder.button(text="📚 Уроки", callback_data="open_lessons")
     if artist_url:
+        params = urlencode(
+            {
+                "level": level,
+                "xp": xp,
+                "streak": streak,
+                "tech": tech,
+                "health": health,
+                "char": char,
+                "theory": theory,
+            }
+        )
+        full_url = f"{artist_url}?{params}"
         builder.button(
             text="🎨 Артист (Mini App)",
-            web_app=WebAppInfo(url=artist_url),
+            web_app=WebAppInfo(url=full_url),
         )
         builder.adjust(2, 1)
     else:

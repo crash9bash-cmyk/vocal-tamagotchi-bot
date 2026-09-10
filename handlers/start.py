@@ -38,7 +38,12 @@ async def cmd_start(message: Message) -> None:
         f"Я — твой вокальный тамагочи. Растим артиста вместе.\n"
         f"Уровень: {user.level} · XP: {user.xp} · стрик: {user.current_streak} дн.\n\n"
         f"Что делаем?",
-        reply_markup=main_menu(MINI_APP_URL),
+        reply_markup=main_menu(
+            MINI_APP_URL,
+            level=user.level,
+            xp=user.xp,
+            streak=user.current_streak,
+        ),
     )
 
 
