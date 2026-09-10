@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+from sqlalchemy import func, select
+
 from db.session import SessionLocal, init_db
 from db.models import Unit, Lesson, QuizQuestion, AudioExample
 
@@ -565,7 +567,7 @@ async def seed() -> None:
             # идемпотентность по order
             unit = (
                 await session.execute(
-                    Unit.__table__.select().where(Unit.order == unit_order)
+                    select(Unit).where(Unit.order == unit_order)
                 )
             ).scalar_one_or_none()
             if unit is None:
@@ -582,7 +584,7 @@ async def seed() -> None:
                 lesson_order += 1
                 existing = (
                     await session.execute(
-                        Lesson.__table__.select()
+                        select(Lesson)
                         .where(Lesson.unit_id == unit.id)
                         .where(Lesson.order == lesson_order)
                     )
@@ -620,8 +622,6 @@ async def seed() -> None:
 
     # сводка
     async with SessionLocal() as session:
-        from sqlalchemy import func, select
-
         n_units = (await session.execute(select(func.count()).select_from(Unit))).scalar()
         n_less = (await session.execute(select(func.count()).select_from(Lesson))).scalar()
         n_quiz = (await session.execute(select(func.count()).select_from(QuizQuestion))).scalar()
