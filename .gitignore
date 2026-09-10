@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Env / secrets
+.env
+*.env
+
+# Local data
+*.db
+*.sqlite
+*.sqlite3
+/data/
+
+# WorkBuddy
+.workbuddy-ai/
+
+# OS
+.DS_Store
+Thumbs.db
