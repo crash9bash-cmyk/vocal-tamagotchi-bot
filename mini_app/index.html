@@ -110,6 +110,12 @@
     <div class="swatch-row"><span class="lbl">Верх</span><span id="topSwatches"></span></div>
     <div class="swatch-row"><span class="lbl">Низ</span><span id="botSwatches"></span></div>
 
+    <div class="section-lbl">Звук</div>
+    <div class="gender">
+      <button id="sndOn">🔊 Вкл</button>
+      <button id="sndOff">🔇 Выкл</button>
+    </div>
+
     <div class="stats" id="stats"></div>
   </div>
   <div class="hint">Vocal Tamagotchi</div>
@@ -692,6 +698,47 @@ function getHeroApproach(perfNow, tier) {
   }
 }
 
+// ---------- звук (Web Audio, опционально) ----------
+// Герой «поёт» нотами до-мажорной гаммы через синтез oscillator (без файлов).
+let audioCtx = null;
+let soundOn = (lsGet("vt_sound", "off") === "on");
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+function playNote(freq, dur) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = "triangle";
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+const SCALE = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+let soundTimer = 0;
+function maybeSing() {
+  if (!soundOn) return;
+  ensureAudio();
+  if (!audioCtx) return;
+  soundTimer++;
+  if (soundTimer % 26 === 0) {
+    const f = SCALE[Math.floor(Math.random() * SCALE.length)];
+    playNote(f, 0.35);
+  }
+}
+function markSound() {
+  document.getElementById("sndOn").classList.toggle("active", soundOn);
+  document.getElementById("sndOff").classList.toggle("active", !soundOn);
+}
+
 // ---------- данные и состояние кастомизации ----------
 let perfNow = 0;
 function parseData() {
@@ -823,6 +870,10 @@ function render() {
   document.getElementById("gBoy").onclick = () => setGender("boy");
   document.getElementById("gGirl").onclick = () => setGender("girl");
 
+  document.getElementById("sndOn").onclick = () => { soundOn = true; lsSet("vt_sound", "on"); ensureAudio(); markSound(); };
+  document.getElementById("sndOff").onclick = () => { soundOn = false; lsSet("vt_sound", "off"); markSound(); };
+  markSound();
+
   // объединяем аксессуары из данных и из tier
   const tierAcc = accForTier(tier);
   const dataAcc = Array.isArray(d.acc) ? d.acc : [];
@@ -893,6 +944,7 @@ function render() {
     if (singing && approach.atMic) {
       noteTimer++;
       if (noteTimer % 22 === 0) spawnNote();
+      maybeSing();
     }
     drawNotes();
     if (perfNow < starUntil) { if (stars.length === 0) spawnStars(cx); }
