@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     DateTime,
+    Date,
     Float,
     UniqueConstraint,
 )
@@ -40,6 +41,8 @@ class User(Base):
     current_streak: Mapped[int] = mapped_column(Integer, default=0)
     xp: Mapped[int] = mapped_column(Integer, default=0)
     level: Mapped[int] = mapped_column(Integer, default=1)
+    # дата последней активности (для расчёта стрика); None = ещё не занимался
+    last_active: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
 
     # relations
     progress: Mapped[list["UserProgress"]] = relationship(

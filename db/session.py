@@ -41,11 +41,18 @@ SessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Создать таблицы (если ещё нет). Вызывается при старте бота."""
+    """Создать таблицы (если ещё нет) + лёгкие миграции. При старте бота."""
     if DATABASE_URL.startswith("sqlite"):
         os.makedirs("data", exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Лёгкая миграция: добавить users.last_active, если колонки ещё нет.
+        # create_all не меняет существующие таблицы, поэтому ALTER вручную;
+        # повторный запуск безопасен (ошибка «duplicate column» глушится).
+        try:
+            await conn.exec_driver_sql("ALTER TABLE users ADD COLUMN last_active DATE")
+        except Exception:
+            pass
 
 
 async def get_session() -> AsyncSession:

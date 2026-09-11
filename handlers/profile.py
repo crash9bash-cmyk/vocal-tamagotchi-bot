@@ -5,6 +5,8 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
+from sqlalchemy import select
+
 from db.session import SessionLocal
 from db.models import User, UserStats
 from keyboards import main_menu
@@ -27,10 +29,13 @@ def _format(user: User, stats: UserStats | None) -> str:
     )
 
 
-async def _load(user_id: int):
+async def _load(tg_id: int):
+    """Найти User по telegram_id (а не по PK!) и его статы."""
     async with SessionLocal() as session:
-        user = await session.get(User, user_id)
-        stats = await session.get(UserStats, user_id) if user else None
+        user = (
+            await session.execute(select(User).where(User.telegram_id == tg_id))
+        ).scalar_one_or_none()
+        stats = await session.get(UserStats, user.id) if user else None
     return user, stats
 
 

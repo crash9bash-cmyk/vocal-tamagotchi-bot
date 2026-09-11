@@ -27,6 +27,7 @@ from db.models import (
     UserStats,
 )
 from config import XP_PER_LESSON
+from progress import apply_activity
 from keyboards import units_menu, lessons_menu, quiz_options, main_menu
 
 router = Router()
@@ -89,16 +90,23 @@ async def cb_unit(query: CallbackQuery) -> None:
                 .order_by(Lesson.order)
             )
         ).scalars().all()
-        # какие уроки уже пройдены этим юзером
-        done = set(
-            r[0]
-            for r in (
-                await session.execute(
-                    select(UserProgress.lesson_id)
-                    .where(UserProgress.user_id == query.from_user.id)
-                )
-            ).all()
-        )
+        # какие уроки уже пройдены этим юзером (ищем User по telegram_id → PK)
+        user = (
+            await session.execute(
+                select(User).where(User.telegram_id == query.from_user.id)
+            )
+        ).scalar_one_or_none()
+        done: set[int] = set()
+        if user is not None:
+            done = set(
+                r[0]
+                for r in (
+                    await session.execute(
+                        select(UserProgress.lesson_id)
+                        .where(UserProgress.user_id == user.id)
+                    )
+                ).all()
+            )
     rows = [(l.id, l.title, l.id in done) for l in lessons]
     await query.message.edit_text(
         "Уроки юнита:", reply_markup=lessons_menu(rows)
@@ -205,7 +213,11 @@ async def _finish_lesson(
 
     # начисляем XP + прогресс (idempotent: один урок — одна запись)
     async with SessionLocal() as session:
-        user = await session.get(User, query.from_user.id)
+        user = (
+            await session.execute(
+                select(User).where(User.telegram_id == query.from_user.id)
+            )
+        ).scalar_one_or_none()
         if user is None:
             # на всякий случай — если /start не было
             user = User(telegram_id=query.from_user.id, username=query.from_user.username)
@@ -222,15 +234,13 @@ async def _finish_lesson(
         ).scalar_one_or_none()
 
         if existing is None:
-            xp_gain = XP_PER_LESSON
-            user.xp += xp_gain
-            # простой пересчёт уровня
-            while user.xp >= user.level * 100:
-                user.xp -= user.level * 100
-                user.level += 1
+            res = apply_activity(user, XP_PER_LESSON)
             session.add(UserProgress(user_id=user.id, lesson_id=lesson_id, score=1.0))
             await session.commit()
-            msg = f"🎉 Урок пройден! +{xp_gain} XP · Уровень {user.level}"
+            msg = f"🎉 Урок пройден! +{res['xp_gain']} XP · Уровень {res['level']}"
+            if res["leveled_up"]:
+                msg += " ⬆️"
+            msg += f" · 🔥 {res['streak']} дн."
         else:
             msg = "Урок уже пройден ранее — повторно XP не начисляем."
 

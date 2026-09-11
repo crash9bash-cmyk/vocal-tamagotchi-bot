@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from db.session import SessionLocal
 from db.models import User, UserStats
-from config import XP_PER_LESSON
+from progress import apply_activity
 
 router = Router()
 
@@ -55,9 +55,7 @@ async def on_voice_report(message: Message) -> None:
             return
 
         xp_gain = hits * XP_PER_HIT
-        user.xp += xp_gain
-        # пересчёт уровня (каждые XP_PER_LEVEL очков = +1 уровень, от 1)
-        user.level = max(1, user.xp // XP_PER_LESSON + 1)
+        res = apply_activity(user, xp_gain)
 
         stats = await session.get(UserStats, user.id)
         if stats is None:
@@ -67,8 +65,11 @@ async def on_voice_report(message: Message) -> None:
 
         await session.commit()
 
-        await message.answer(
+        msg = (
             f"🎤 Молодец! Попал в ноту <b>{hits}</b> раз"
             + (f" из {rounds}" if rounds else "")
-            + f".\n+{xp_gain} XP, вокальная техника ↑\nУровень: {user.level}"
+            + f".\n+{xp_gain} XP, вокальная техника ↑"
+            + f"\nУровень: {res['level']}" + (" ⬆️" if res["leveled_up"] else "")
+            + f" · 🔥 {res['streak']} дн."
         )
+        await message.answer(msg)
