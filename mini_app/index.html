@@ -846,6 +846,11 @@ function stopSing() {
   const xb = document.getElementById("stopBtn"); if (xb) xb.style.display = "none";
   const out = document.getElementById("pitchOut");
   if (out) out.textContent = "Счёт: " + gameScore + " / " + gameRounds + " попаданий";
+  // отправляем результат боту (закрывает Mini App — это конец тренировки)
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && (gameScore > 0 || gameRounds > 0)) {
+    tg.sendData(JSON.stringify({ type: "pitch", hits: gameScore, rounds: gameRounds }));
+  }
 }
 
 // ---------- данные и состояние кастомизации ----------

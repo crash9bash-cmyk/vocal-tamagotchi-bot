@@ -14,7 +14,7 @@ from aiogram.types import BotCommand
 from config import require_token
 from db.session import init_db
 from seed_content import seed
-from handlers import start, profile, lessons
+from handlers import start, profile, lessons, voice
 
 
 def _start_health_server() -> None:
@@ -58,6 +58,7 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(profile.router)
     dp.include_router(lessons.router)
+    dp.include_router(voice.router)
 
     # БД
     await init_db()
