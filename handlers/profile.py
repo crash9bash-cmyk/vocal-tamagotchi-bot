@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from db.session import SessionLocal
 from db.models import User, UserStats
+from progress import TIERS, tier_index, next_tier
 from keyboards import main_menu
 from config import MINI_APP_URL
 
@@ -17,10 +18,21 @@ router = Router()
 
 def _format(user: User, stats: UserStats | None) -> str:
     s = stats or UserStats()
+    tier = tier_index(user.xp, user.current_streak)
+    room = TIERS[tier][0]
+    nxt = next_tier(user.xp, user.current_streak)
+    if nxt:
+        prog = f"До {nxt['name']}: {nxt['xp_left']} XP"
+        if nxt["streak_left"] > 0:
+            prog += f" или 🔥 {nxt['streak_left']} дн."
+    else:
+        prog = "🏆 Максимальная студия!"
     return (
         f"🎤 <b>Твой артист</b>\n\n"
         f"Уровень: {user.level}   XP: {user.xp}\n"
-        f"🔥 Стрик: {user.current_streak} дн.\n\n"
+        f"🔥 Стрик: {user.current_streak} дн.\n"
+        f"Комната: {room}\n"
+        f"{prog}\n\n"
         f"<b>Статы:</b>\n"
         f"🎶 Вокальная техника: {s.vocal_technique:.0f}\n"
         f"💚 Здоровье голоса:   {s.voice_health:.0f}\n"

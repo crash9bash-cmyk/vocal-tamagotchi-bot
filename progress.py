@@ -20,6 +20,38 @@ def level_for_xp(xp: int) -> int:
     return max(1, xp // XP_PER_LEVEL + 1)
 
 
+# Пороги комнат — СИНХРОНИЗИРОВАНЫ с Mini App (TIERS в mini_app/index.html).
+# (название, minXP, minStreak)
+TIERS: list[tuple[str, int, int]] = [
+    ("🏠 Своя комната", 0, 0),
+    ("🎼 Репетиционная", 100, 3),
+    ("🎧 Студия", 500, 7),
+    ("🏆 Топ-студия", 2000, 14),
+]
+
+
+def tier_index(xp: int, streak: int) -> int:
+    """Индекс текущей комнаты (та же логика, что tierFromData в Mini App)."""
+    tier = 0
+    for i, (_name, min_xp, min_streak) in enumerate(TIERS):
+        if xp >= min_xp or streak >= min_streak:
+            tier = i
+    return tier
+
+
+def next_tier(xp: int, streak: int) -> dict | None:
+    """Инфо о следующей комнате или None, если уже максимум."""
+    tier = tier_index(xp, streak)
+    if tier >= len(TIERS) - 1:
+        return None
+    name, min_xp, min_streak = TIERS[tier + 1]
+    return {
+        "name": name,
+        "xp_left": max(0, min_xp - xp),
+        "streak_left": max(0, min_streak - streak),
+    }
+
+
 def apply_activity(user: User, xp_gain: int, today: dt.date | None = None) -> dict:
     """Начислить XP за активность, пересчитать уровень и стрик.
 
