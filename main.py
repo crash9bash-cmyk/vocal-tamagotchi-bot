@@ -13,6 +13,7 @@ from aiogram.types import BotCommand
 
 from config import require_token
 from db.session import init_db
+from seed_content import seed
 from handlers import start, profile, lessons
 
 
@@ -60,6 +61,7 @@ async def main() -> None:
 
     # БД
     await init_db()
+    await seed()  # идемпотентно: наполняем контентом при первом запуске
     await bot.set_my_commands(BOT_COMMANDS)
 
     # health-сервер (только на хостинге, где задан $PORT)
