@@ -85,6 +85,8 @@
     border: 2px solid var(--line); padding: 7px 12px; font-family: inherit;
     font-size: 11px; border-radius: 6px; cursor: pointer;
   }
+  .meter { width: 100%; height: 10px; background: #0a1426; border: 2px solid var(--line); border-radius: 3px; overflow: hidden; margin: 4px 0; }
+  .meter > i { display: block; height: 100%; width: 50%; background: var(--accent); transition: width .05s linear; }
 </style>
 </head>
 <body>
@@ -117,6 +119,14 @@
     </div>
 
     <div class="stats" id="stats"></div>
+
+    <div class="section-lbl">🎙 Голос (v2, бета)</div>
+    <div class="gender">
+      <button id="singBtn">🎤 Спой ноту</button>
+      <button id="stopBtn" style="display:none">⏹ Стоп</button>
+    </div>
+    <div class="mood" id="pitchOut">Микрофон ловит высоту твоего голоса.</div>
+    <div class="meter"><i id="pitchMeter"></i></div>
   </div>
   <div class="hint">Vocal Tamagotchi</div>
   <button class="close" id="closeBtn" style="display:none">Закрыть</button>
@@ -739,6 +749,105 @@ function markSound() {
   document.getElementById("sndOff").classList.toggle("active", !soundOn);
 }
 
+// ---------- v2: голосовой анализ (питч-детекция) ----------
+// Мини-игра «Спой ноту»: ловим высоту голоса с микрофона (Web Audio
+// AnalyserNode + автокорреляция) и сравниваем с целевой нотой в центах.
+// Пока локально (счёт в Mini App); бэкенд-хук — следующий шаг.
+let micStream = null, analyser = null, micData = null;
+let singingGame = false, targetMidi = 60, gameScore = 0, gameRounds = 0;
+const A4 = 440;
+function midiToFreq(m) { return A4 * Math.pow(2, (m - 69) / 12); }
+function freqToMidi(f) { return 69 + 12 * Math.log2(f / A4); }
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function noteName(m) { const r = Math.round(m); return NOTE_NAMES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1); }
+function centsOff(freq, target) { return 1200 * Math.log2(freq / target); }
+// автокорреляция (ACF) — классический алгоритм детекции основного тона
+function autoCorrelate(buf, sr) {
+  let SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.01) return -1; // слишком тихо — фон
+  let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < thres) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
+  buf = buf.slice(r1, r2); SIZE = buf.length;
+  const c = new Array(SIZE).fill(0);
+  for (let i = 0; i < SIZE; i++)
+    for (let j = 0; j < SIZE - i; j++) c[i] += buf[j] * buf[j + i];
+  let d = 0;
+  while (d < SIZE - 1 && c[d] > c[d + 1]) d++;
+  let maxval = -1, maxpos = -1;
+  for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
+  let T0 = maxpos;
+  // параболическая интерполяция для точности
+  const x1 = c[T0 - 1] || 0, x2 = c[T0], x3 = c[T0 + 1] || 0;
+  const a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b / a;
+  return sr / T0;
+}
+function newRound() {
+  targetMidi = 60 + Math.floor(Math.random() * 13); // C4..C5
+  const tf = midiToFreq(targetMidi);
+  const out = document.getElementById("pitchOut");
+  if (out) out.textContent = "Спой: " + noteName(targetMidi) + " (" + Math.round(tf) + " Гц)";
+}
+async function startSing() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const out = document.getElementById("pitchOut");
+    if (out) out.textContent = "🎤 Микрофон не поддерживается в этом окружении.";
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    ensureAudio();
+    if (!audioCtx) { document.getElementById("pitchOut").textContent = "🎤 Аудио-контекст недоступен."; return; }
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    src.connect(analyser);
+    micData = new Float32Array(analyser.fftSize);
+    singingGame = true;
+    gameScore = 0; gameRounds = 0;
+    document.getElementById("singBtn").style.display = "none";
+    document.getElementById("stopBtn").style.display = "block";
+    newRound();
+    requestAnimationFrame(pitchLoop);
+  } catch (e) {
+    const out = document.getElementById("pitchOut");
+    if (out) out.textContent = "🎤 Нет доступа к микрофону: " + (e && e.message ? e.message : e);
+  }
+}
+function pitchLoop() {
+  if (!singingGame || !analyser) return;
+  analyser.getFloatTimeDomainData(micData);
+  const f = autoCorrelate(micData, audioCtx.sampleRate);
+  if (f > 0) {
+    const cents = centsOff(f, midiToFreq(targetMidi));
+    const w = Math.max(0, Math.min(100, 50 + cents)); // 50% = в строю
+    const meter = document.getElementById("pitchMeter");
+    if (meter) meter.style.width = w + "%";
+    const out = document.getElementById("pitchOut");
+    if (out) out.textContent = "Слышу: " + noteName(freqToMidi(f)) +
+      " · " + (cents >= 0 ? "+" : "") + Math.round(cents) + " ¢";
+    if (Math.abs(cents) < 35) { // попал в ноту
+      gameScore++; gameRounds++;
+      spawnStars(30);
+      newRound();
+    }
+  }
+  requestAnimationFrame(pitchLoop);
+}
+function stopSing() {
+  singingGame = false;
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  const sb = document.getElementById("singBtn"); if (sb) sb.style.display = "block";
+  const xb = document.getElementById("stopBtn"); if (xb) xb.style.display = "none";
+  const out = document.getElementById("pitchOut");
+  if (out) out.textContent = "Счёт: " + gameScore + " / " + gameRounds + " попаданий";
+}
+
 // ---------- данные и состояние кастомизации ----------
 let perfNow = 0;
 function parseData() {
@@ -872,6 +981,8 @@ function render() {
 
   document.getElementById("sndOn").onclick = () => { soundOn = true; lsSet("vt_sound", "on"); ensureAudio(); markSound(); };
   document.getElementById("sndOff").onclick = () => { soundOn = false; lsSet("vt_sound", "off"); markSound(); };
+  const sb = document.getElementById("singBtn"); if (sb) sb.onclick = startSing;
+  const xb = document.getElementById("stopBtn"); if (xb) xb.onclick = stopSing;
   markSound();
 
   // объединяем аксессуары из данных и из tier
