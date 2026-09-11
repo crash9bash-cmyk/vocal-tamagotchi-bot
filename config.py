@@ -17,6 +17,11 @@ BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")
 # Локально можно оставить пустым — кнопка просто не показывается.
 MINI_APP_URL: str = os.getenv("MINI_APP_URL", "")
 
+# Строка БД. На хостинге (Railway/Render/VPS) сюда подставляется Postgres
+# (например postgres://user:pass@host/db). Если пуста — бот берёт локальный
+# SQLite (data/bot.db). SQLAlchemy-движок выбирается в db/session.py.
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
 # XP за прохождение урока (базовое начисление)
 XP_PER_LESSON = 10
 # Сколько уроков нужно пройти для +1 уровень (упрощённо)
