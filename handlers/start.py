@@ -1,6 +1,8 @@
 """Хендлер /start — регистрация пользователя + главное меню."""
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
@@ -17,7 +19,7 @@ async def _register_user(session, tg_user) -> User:
     """Создать User + UserStats при первом запуске, иначе вернуть существующего."""
     user = (
         await session.execute(
-            User.__table__.select().where(User.telegram_id == tg_user.id)
+            select(User).where(User.telegram_id == tg_user.id)
         )
     ).scalar_one_or_none()
     if user is None:

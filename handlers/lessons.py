@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 
+from sqlalchemy import select
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -46,7 +48,7 @@ async def cmd_lessons(message: Message) -> None:
 
 async def _show_units(target: Message | CallbackQuery) -> None:
     async with SessionLocal() as session:
-        units = (await session.execute(Unit.__table__.select().order_by(Unit.order))).scalars().all()
+        units = (await session.execute(select(Unit).order_by(Unit.order))).scalars().all()
     if not units:
         text = "📚 Уроки готовятся — контент появится скоро!"
         if isinstance(target, Message):
@@ -82,7 +84,7 @@ async def cb_unit(query: CallbackQuery) -> None:
     async with SessionLocal() as session:
         lessons = (
             await session.execute(
-                Lesson.__table__.select()
+                select(Lesson)
                 .where(Lesson.unit_id == unit_id)
                 .order_by(Lesson.order)
             )
@@ -92,9 +94,8 @@ async def cb_unit(query: CallbackQuery) -> None:
             r[0]
             for r in (
                 await session.execute(
-                    UserProgress.__table__.select()
+                    select(UserProgress.lesson_id)
                     .where(UserProgress.user_id == query.from_user.id)
-                    .with_only_columns(UserProgress.lesson_id)
                 )
             ).all()
         )
@@ -115,12 +116,12 @@ async def cb_lesson(query: CallbackQuery, state: FSMContext) -> None:
             return
         quiz = (
             await session.execute(
-                QuizQuestion.__table__.select().where(QuizQuestion.lesson_id == lesson_id)
+                select(QuizQuestion).where(QuizQuestion.lesson_id == lesson_id)
             )
         ).scalars().all()
         audio = (
             await session.execute(
-                AudioExample.__table__.select().where(AudioExample.lesson_id == lesson_id)
+                select(AudioExample).where(AudioExample.lesson_id == lesson_id)
             )
         ).scalars().all()
 
@@ -159,7 +160,7 @@ async def cb_quiz(query: CallbackQuery, state: FSMContext) -> None:
     async with SessionLocal() as session:
         q = (
             await session.execute(
-                QuizQuestion.__table__.select()
+                select(QuizQuestion)
                 .where(QuizQuestion.lesson_id == lesson_id)
                 .order_by(QuizQuestion.id)
             )
@@ -167,7 +168,7 @@ async def cb_quiz(query: CallbackQuery, state: FSMContext) -> None:
         correct = chosen == q.correct_option
         audio = (
             await session.execute(
-                AudioExample.__table__.select().where(AudioExample.lesson_id == lesson_id)
+                select(AudioExample).where(AudioExample.lesson_id == lesson_id)
             )
         ).scalars().all()
 
@@ -185,7 +186,7 @@ async def _quiz_at(lesson_id: int, idx: int) -> QuizQuestion:
     async with SessionLocal() as session:
         rows = (
             await session.execute(
-                QuizQuestion.__table__.select()
+                select(QuizQuestion)
                 .where(QuizQuestion.lesson_id == lesson_id)
                 .order_by(QuizQuestion.id)
             )
@@ -214,7 +215,7 @@ async def _finish_lesson(
 
         existing = (
             await session.execute(
-                UserProgress.__table__.select()
+                select(UserProgress)
                 .where(UserProgress.user_id == user.id)
                 .where(UserProgress.lesson_id == lesson_id)
             )
